@@ -1,0 +1,11 @@
+Retrieval-Augmented Generation (RAG) is a technique that combines information retrieval with language model generation.
+Instead of relying solely on parametric knowledge stored in model weights, RAG fetches relevant documents at query time.
+This allows the model to ground its responses in external, up-to-date knowledge sources.
+
+The retrieval step typically involves embedding both the query and documents into a shared vector space.
+Nearest neighbor search then identifies the most semantically relevant chunks.
+These chunks are passed as context to the generator, which produces a cited, grounded response.
+
+Chunking strategy significantly impacts retrieval quality.
+Fixed chunking splits text at regular character intervals regardless of semantic boundaries.
+Semantic chunking respects sentence and paragraph boundaries, often improving retrieval precision.
