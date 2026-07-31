@@ -1,14 +1,5 @@
 # configs/default.yaml
 
-pipeline:
-  loader:    txt
-  chunker:   fixed
-  embedder:  bge_small
-  index:     faiss_flat
-  retriever: vector
-  reranker:  null
-  generator: openai
-
 chunker:
   fixed:
     chunk_size:    512
@@ -27,8 +18,19 @@ retriever:
   vector:
     top_k: 5
 
+pipeline:
+  loader:    txt
+  chunker:   fixed
+  embedder:  bge_small
+  index:     faiss_flat
+  retriever: vector
+  reranker:  null
+  generator: openrouter
+
+# ... other sections unchanged ...
+
 generator:
-  openai:
-    model:      gpt-4o-mini
-    max_tokens: 512
+  openrouter:
+    model:       nvidia/nemotron-3-ultra-550b-a55b:free
+    max_tokens:  512
     temperature: 0.0
