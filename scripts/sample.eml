@@ -1,0 +1,60 @@
+Subject: Q4 planning review - action items
+From: Alice Chen <alice.chen@example.com>
+To: Bob Rao <bob.rao@example.com>, Carol Singh <carol.singh@example.com>
+Cc: team-leads@example.com
+Date: Wed, 15 Nov 2023 10:30:00 -0500
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============4300093093250509491=="
+
+--===============4300093093250509491==
+Content-Type: multipart/alternative;
+ boundary="===============9048788490180429867=="
+
+--===============9048788490180429867==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hi Bob and Carol,
+
+Thanks for joining the Q4 planning review yesterday. Summarizing the action i=
+tems:
+
+1. Bob to finalize the retrieval benchmark results by Friday
+2. Carol to draft the customer-facing changelog by end of next week
+3. All: review the attached architecture doc before the deep dive on Monday
+
+Let me know if I missed anything.
+
+Best,
+Alice
+
+--===============9048788490180429867==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body>
+<p>Hi Bob and Carol,</p>
+<p>Thanks for joining the Q4 planning review yesterday. Summarizing the actio=
+n items:</p>
+<ol>
+  <li>Bob to finalize the retrieval benchmark results by Friday</li>
+  <li>Carol to draft the customer-facing changelog by end of next week</li>
+  <li>All: review the attached architecture doc before the deep dive on Monda=
+y</li>
+</ol>
+<p>Let me know if I missed anything.</p>
+<p>Best,<br>Alice</p>
+</body></html>
+
+--===============9048788490180429867==--
+
+--===============4300093093250509491==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="architecture.pdf"
+MIME-Version: 1.0
+
+QXJjaGl0ZWN0dXJlIGRvYyBwbGFjZWhvbGRlciBjb250ZW50Lg==
+
+--===============4300093093250509491==--
