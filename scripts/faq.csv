@@ -1,0 +1,6 @@
+question,answer,category
+"What is RAG?","Retrieval-Augmented Generation combines retrieval with LLM generation to ground answers in external data.",fundamentals
+"How does chunking affect quality?","Chunking determines what units get retrieved. Poor chunking loses context; good chunking preserves semantic boundaries.",chunking
+"When should I use BM25?","BM25 excels at exact keyword matches and short queries with specific entities. Use it alongside dense retrieval for hybrid search.",retrieval
+"What is a cross-encoder reranker?","A cross-encoder scores query-document pairs jointly for high-precision reranking of top candidates.",reranking
+"How do I measure RAG quality?","Use recall@k and MRR for retrieval, and faithfulness plus answer correctness for generation.",evaluation
