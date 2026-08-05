@@ -9,12 +9,15 @@
 ## 1. Milestone summary
 
 ### Goal
+
 Widen the front door. Every major document format — TXT, PDF, DOCX, Markdown, HTML, CSV, Email, YouTube — flows through the same normalized `Document` shape, so downstream chunking/embedding/retrieval doesn't care what the source was. Ingestion quality is measured per format, not assumed.
 
 ### Why this milestone matters
+
 Ingestion is where most RAG systems quietly fail. A wrongly-parsed PDF, a garbled table extraction, a missed language detection, a dropped chunk — none of these produce error messages. They produce *bad answers,* and the team spends weeks blaming the embedder. This milestone puts a foundation under the whole pipeline: **every source type is a first-class citizen with measured quality.**
 
 ### What "done" looks like
+
 - 8 loaders — TXT, PDF, DOCX, Markdown, HTML, CSV, Email, YouTube
 - 1 auto-routing dispatcher (extension + URL-scheme based routing)
 - 1 unified normalization pipeline (text cleaning, language detection, metadata enrichment)
@@ -61,25 +64,25 @@ Source URL/file ────▶│  LoaderRouter   │
 
 ### Loader inventory
 
-| Loader | Handles | Key features |
-|--------|---------|--------------|
-| `TXTLoader` | .txt | Simplest baseline |
-| `PDFLoader` | .pdf | pdfplumber, per-page docs, table extraction, `content_type` metadata, OCR flag |
-| `DOCXLoader` | .doc, .docx | Heading-aware sections, LibreOffice conversion for .doc |
-| `MarkdownLoader` | .md, .markdown | Regex heading detection, section-per-Document |
-| `HTMLLoader` | http(s), .html | trafilatura + BS4 strategies, metadata extraction |
-| `CSVLoader` | .csv | Row/file strategies, field-value templating |
-| `EmailLoader` | .eml | MIME-aware, plain-preferred, header metadata, attachment inventory |
-| `YouTubeLoader` | youtube URLs | Segment/full modes, timestamped citations, deep-link URLs |
-| `LoaderRouter` | *any* | Composite loader, dispatches by extension or URL scheme |
+| Loader             | Handles        | Key features                                                                    |
+| ------------------ | -------------- | ------------------------------------------------------------------------------- |
+| `TXTLoader`      | .txt           | Simplest baseline                                                               |
+| `PDFLoader`      | .pdf           | pdfplumber, per-page docs, table extraction,`content_type` metadata, OCR flag |
+| `DOCXLoader`     | .doc, .docx    | Heading-aware sections, LibreOffice conversion for .doc                         |
+| `MarkdownLoader` | .md, .markdown | Regex heading detection, section-per-Document                                   |
+| `HTMLLoader`     | http(s), .html | trafilatura + BS4 strategies, metadata extraction                               |
+| `CSVLoader`      | .csv           | Row/file strategies, field-value templating                                     |
+| `EmailLoader`    | .eml           | MIME-aware, plain-preferred, header metadata, attachment inventory              |
+| `YouTubeLoader`  | youtube URLs   | Segment/full modes, timestamped citations, deep-link URLs                       |
+| `LoaderRouter`   | *any*        | Composite loader, dispatches by extension or URL scheme                         |
 
 ### Normalization stages
 
-| Stage | Responsibility |
-|-------|----------------|
-| `TextCleaner` | Unicode NFC + strip invisible/control chars + collapse whitespace |
-| `LanguageDetector` | Confidence-gated language detection, `en` fallback |
-| `MetadataEnricher` | Add char/word/line counts |
+| Stage                | Responsibility                                                    |
+| -------------------- | ----------------------------------------------------------------- |
+| `TextCleaner`      | Unicode NFC + strip invisible/control chars + collapse whitespace |
+| `LanguageDetector` | Confidence-gated language detection,`en` fallback               |
+| `MetadataEnricher` | Add char/word/line counts                                         |
 
 Order matters: cleaning must precede detection (documented invariant).
 
@@ -90,6 +93,7 @@ Order matters: cleaning must precede detection (documented invariant).
 ### 3.1 The "ingestion silently kills quality" pattern
 
 Retrieval failures traced to ingestion typically look like:
+
 - User asks about a table on page 4 → answer says "I don't have context" → table was garbled during extraction
 - User asks about content in the sidebar → RAG returns cookie policies → boilerplate wasn't stripped
 - Semantically identical strings don't match → Unicode normalization was skipped
@@ -99,37 +103,39 @@ None of these produce error messages. They produce degraded quality — the fail
 
 ### 3.2 The 5 categories of PDF content
 
-| Category | Example | Default extractor |
-|----------|---------|-------------------|
-| Plain paragraphs | Reports, articles | pypdf/pdfplumber both work |
-| Multi-column | Academic papers, magazines | pdfplumber with layout detection |
-| Tables | Financial reports, invoices | pdfplumber.extract_tables() or camelot |
-| Images/diagrams | Presentations | Extract → VLM caption (M12) |
-| Scanned PDFs | Legal docs, old archives | OCR (pytesseract/easyocr, M12) |
+| Category         | Example                     | Default extractor                      |
+| ---------------- | --------------------------- | -------------------------------------- |
+| Plain paragraphs | Reports, articles           | pypdf/pdfplumber both work             |
+| Multi-column     | Academic papers, magazines  | pdfplumber with layout detection       |
+| Tables           | Financial reports, invoices | pdfplumber.extract_tables() or camelot |
+| Images/diagrams  | Presentations               | Extract → VLM caption (M12)           |
+| Scanned PDFs     | Legal docs, old archives    | OCR (pytesseract/easyocr, M12)         |
 
 Production RAG needs a **PDF router** — inspect the PDF first, choose the extractor. One-size-fits-all fails.
 
 ### 3.3 Multi-format retrieval dynamics
 
 When the corpus spans formats, retrieval develops emergent behaviors:
+
 - **Better content wins.** If two sources contain relevant text, the semantically-closer one is retrieved. This can conflict with an old gold set.
 - **Structural formats outperform prose.** CSV rows with field-value templating, emails with subject prefixes, and heading-aware DOCX sections hit higher recall than plain TXT.
 - **Chunk-boundary artifacts vary by loader.** PDF pages create natural boundaries; TXT files depend entirely on chunker settings.
 
 ### 3.4 Extraction library landscape
 
-| Format | Options | Winner (2026) |
-|--------|---------|---------------|
-| PDF | pypdf, pdfplumber, pymupdf, unstructured, camelot | **pdfplumber** for text+tables, **pymupdf** if GPL is OK |
-| DOCX | python-docx, docx2txt, mammoth | **python-docx** (structure), **mammoth** (HTML conversion) |
-| HTML | trafilatura, readability, boilerpipe, unstructured | **trafilatura** (research standard) |
-| Email | stdlib email, mailparser | **stdlib** (20 years of production use) |
-| YouTube | youtube-transcript-api, yt-dlp | **youtube-transcript-api** (transcripts only) |
-| CSV | pandas, stdlib csv, polars | **pandas** (edge cases handled) |
+| Format  | Options                                            | Winner (2026)                                                          |
+| ------- | -------------------------------------------------- | ---------------------------------------------------------------------- |
+| PDF     | pypdf, pdfplumber, pymupdf, unstructured, camelot  | **pdfplumber** for text+tables, **pymupdf** if GPL is OK   |
+| DOCX    | python-docx, docx2txt, mammoth                     | **python-docx** (structure), **mammoth** (HTML conversion) |
+| HTML    | trafilatura, readability, boilerpipe, unstructured | **trafilatura** (research standard)                              |
+| Email   | stdlib email, mailparser                           | **stdlib** (20 years of production use)                          |
+| YouTube | youtube-transcript-api, yt-dlp                     | **youtube-transcript-api** (transcripts only)                    |
+| CSV     | pandas, stdlib csv, polars                         | **pandas** (edge cases handled)                                  |
 
 ### 3.5 Boilerplate removal quantified
 
 On the Wikipedia RAG article:
+
 - Naive `get_text()`: 22,884 chars — includes nav, citations as line breaks, footer
 - Trafilatura: 15,057 chars — clean paragraph flow
 - **Delta: 7,827 chars = 34% noise**
@@ -139,6 +145,7 @@ That 34% would otherwise sit in your index, get embedded, and compete for retrie
 ### 3.6 The confidence-gate pattern
 
 For any "should I trust this model's output" decision, prefer the model's own confidence to a proxy:
+
 - Not "was the text long enough?" but "was the top prediction confident enough?"
 - langdetect's `detect_langs()` returns probabilities; use them
 - Same principle applies to NER, classification, LLM-as-judge (M8), reranker scores (M6)
@@ -150,37 +157,44 @@ This is a general engineering pattern that recurs throughout RAG.
 ## 4. Design decisions and trade-offs
 
 ### 4.1 Why per-page/section Documents instead of per-file
+
 - Provenance preserved for citations
 - Retrieval granularity matches semantic unit
 - Chunker can still further split large sections
 - Trade-off: more Documents to manage, slightly higher index cost
 
 ### 4.2 Why templated field-value CSV rows
+
 - Column names carry semantic meaning the embedder uses
 - Trivial code change (`"col: val | ..."`)
 - Trade-off: rows with many empty columns bloat; skip logic mitigates
 
 ### 4.3 Why trafilatura as HTML default
+
 - ML-heuristic boilerplate remover, purpose-built for research corpora
 - Consistently ranks #1 on extraction benchmarks
 - Trade-off: less control than hand-crafted BS4 selectors; strategy='both' preserves the option
 
 ### 4.4 Why plain-preferred over HTML in emails
+
 - Plain body is already clean; HTML has boilerplate to strip
 - Never embed both — same content twice poisons retrieval
 - Trade-off: HTML-only emails need BS4 stripping fallback
 
 ### 4.5 Why LibreOffice for .doc → .docx
+
 - Correct, cross-platform, free
 - Alternative (writing a binary parser) is months of work
 - Trade-off: requires LibreOffice installed; error message points to install page
 
 ### 4.6 Why NormalizationPipeline as separate stage
+
 - Enforces canonical form across all loaders
 - Composable, testable, extensible (add PII redaction, translation as future stages)
 - Trade-off: extra pass over content; cost is negligible
 
 ### 4.7 Why segment-mode default for YouTube
+
 - Timestamps are the unique value proposition of video RAG
 - Deep-link URLs are citation gold
 - Trade-off: many small Documents; chunker downstream normalizes size
@@ -212,20 +226,20 @@ This is a general engineering pattern that recurs throughout RAG.
 
 **Corpus:** 32 chunks across 5 file types (TXT, MD, CSV, EML, PDF)
 
-| Metric | Score |
-|--------|-------|
+| Metric   | Score |
+| -------- | ----- |
 | recall@1 | 0.714 |
 | recall@3 | 0.857 |
-| MRR | 0.821 |
+| MRR      | 0.821 |
 
 ### Per-format recall@1
 
-| Format | recall@1 | Note |
-|--------|----------|------|
-| faq.csv | 1.000 | Field-value templating wins |
-| sample.eml | 1.000 | Subject-in-content pays off |
-| corpus.txt | 0.500 | Duplicate content elsewhere |
-| sample.md | 0.500 | recall@3 = 1.0 — reranker signal |
+| Format     | recall@1 | Note                              |
+| ---------- | -------- | --------------------------------- |
+| faq.csv    | 1.000    | Field-value templating wins       |
+| sample.eml | 1.000    | Subject-in-content pays off       |
+| corpus.txt | 0.500    | Duplicate content elsewhere       |
+| sample.md  | 0.500    | recall@3 = 1.0 — reranker signal |
 
 ### Interpretation
 
@@ -235,11 +249,11 @@ This is a general engineering pattern that recurs throughout RAG.
 
 ### Comparison with M0
 
-| | M0 (TXT only) | M1 (multi-format) |
-|--|---------------|-------------------|
-| recall@1 | 0.800 | 0.714 |
-| recall@3 | 1.000 | 0.857 |
-| MRR | 0.900 | 0.821 |
+|          | M0 (TXT only) | M1 (multi-format) |
+| -------- | ------------- | ----------------- |
+| recall@1 | 0.800         | 0.714             |
+| recall@3 | 1.000         | 0.857             |
+| MRR      | 0.900         | 0.821             |
 
 The drop is largely gold-set staleness, not real regression. Absolute numbers matter less than the diagnostic clarity per-format metrics provide.
 
@@ -353,14 +367,14 @@ The drop is largely gold-set staleness, not real regression. Absolute numbers ma
 
 ## Milestone status
 
-- [x] 1.1 — PDF loader
-- [x] 1.2 — DOCX + Markdown loaders
-- [x] 1.3 — HTML/Web loader
-- [x] 1.4 — CSV loader
-- [x] 1.5 — Email loader
-- [x] 1.6 — YouTube transcript loader
-- [x] 1.7 — Normalization pipeline
-- [x] 1.8 — Multi-format router + eval
+- [X] 1.1 — PDF loader
+- [X] 1.2 — DOCX + Markdown loaders
+- [X] 1.3 — HTML/Web loader
+- [X] 1.4 — CSV loader
+- [X] 1.5 — Email loader
+- [X] 1.6 — YouTube transcript loader
+- [X] 1.7 — Normalization pipeline
+- [X] 1.8 — Multi-format router + eval
 
 **Resume line unlocked (updated with M1):**
 
