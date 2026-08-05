@@ -1,4 +1,3 @@
-Set-Content -Path "D:\Rudraksh\KnowledgeOS\scripts\corpus.txt" -Value @"
 Retrieval-Augmented Generation (RAG) combines information retrieval with language model generation. Instead of relying only on parametric knowledge stored in model weights, RAG fetches relevant documents at query time. This lets the model ground its answers in external, up-to-date sources.
 
 The retrieval step embeds both the query and documents into a shared vector space. Nearest neighbor search then finds the most semantically similar chunks. These retrieved chunks are passed as context to the generator.
