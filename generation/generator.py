@@ -3,8 +3,14 @@
 import os
 import json
 import requests
+from dotenv import load_dotenv
 from core import Chunk, Generator
 from .prompt_builder import build_prompt
+
+
+# Load .env from repo root on first import.
+# override=False means real env vars win — safe for CI/production.
+load_dotenv(override=False)
 
 
 class OpenRouterGenerator(Generator):
@@ -12,7 +18,7 @@ class OpenRouterGenerator(Generator):
 
     def __init__(
         self,
-        model:       str   = "nvidia/nemotron-3-ultra-550b-a55b:free",
+        model:       str   = "inclusionai/ling-3.0-flash:free",
         max_tokens:  int   = 512,
         temperature: float = 0.0,
         reasoning:   bool  = True,
@@ -21,7 +27,14 @@ class OpenRouterGenerator(Generator):
         self.max_tokens  = max_tokens
         self.temperature = temperature
         self.reasoning   = reasoning
-        self.api_key     = os.environ["OPENROUTER_API_KEY"]
+
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "OPENROUTER_API_KEY not found. "
+                "Add it to a .env file at repo root, or export it as an env var."
+            )
+        self.api_key = api_key
 
     def generate(self, query: str, chunks: list[Chunk]) -> str:
         messages = build_prompt(query, chunks)
@@ -47,7 +60,6 @@ class OpenRouterGenerator(Generator):
         response.raise_for_status()
         data = response.json()
 
-        # Defensive: OpenRouter sometimes returns errors as 200-status JSON
         if "choices" not in data:
             raise RuntimeError(f"OpenRouter error: {data}")
 
