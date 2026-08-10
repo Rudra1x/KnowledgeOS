@@ -18,7 +18,7 @@ class OpenRouterGenerator(Generator):
 
     def __init__(
         self,
-        model:       str   = "inclusionai/ling-3.0-flash:free",
+        model:       str   = "openrouter/free",
         max_tokens:  int   = 512,
         temperature: float = 0.0,
         reasoning:   bool  = True,

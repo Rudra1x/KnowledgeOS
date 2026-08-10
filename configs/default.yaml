@@ -31,6 +31,6 @@ pipeline:
 
 generator:
   openrouter:
-    model:       inclusionai/ling-3.0-flash:free
+    model:       openrouter/free
     max_tokens:  512
     temperature: 0.0
