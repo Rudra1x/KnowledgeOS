@@ -1,4 +1,7 @@
-Retrieval-Augmented Generation (RAG) combines information retrieval with language model generation. Instead of relying only on parametric knowledge stored in model weights, RAG fetches relevant documents at query time. This lets the model ground its answers in external, up-to-date sources.
+# scripts/make_corpus.py
+# Run once to create a clean corpus.txt
+
+corpus = """Retrieval-Augmented Generation (RAG) combines information retrieval with language model generation. Instead of relying only on parametric knowledge stored in model weights, RAG fetches relevant documents at query time. This lets the model ground its answers in external, up-to-date sources.
 
 The retrieval step embeds both the query and documents into a shared vector space. Nearest neighbor search then finds the most semantically similar chunks. These retrieved chunks are passed as context to the generator.
 
@@ -16,4 +19,9 @@ Evaluation metrics for retrieval include recall@k, precision@k, MRR, and nDCG. R
 
 Faithfulness measures whether generated answers are supported by the retrieved context. A high-faithfulness answer contains no claims that go beyond what the context states. Hallucination detection typically compares answer spans against retrieved chunks.
 
-FAISS is a library for efficient similarity search on dense vectors. It supports flat (exact) indexes for small corpora and approximate indexes like IVF and HNSW for larger scales. HNSW trades a small recall drop for large speed gains.
+FAISS is a library for efficient similarity search on dense vectors. It supports flat (exact) indexes for small corpora and approximate indexes like IVF and HNSW for larger scales. HNSW trades a small recall drop for large speed gains."""
+
+with open("scripts/corpus.txt", "w", encoding="utf-8") as f:
+    f.write(corpus)
+
+print(f"Written: {len(corpus)} chars, {corpus.count(chr(10)+chr(10))+1} paragraphs")
