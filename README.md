@@ -268,7 +268,7 @@ Located in `docs/milestones/` and `docs/checkpoints/`.
 ## Author
 
 **Rudraksh Sharma** — Data Scientist at AIONOS, Technical Lead at Beerantum.
-Qiskit Advocate.
+Qiskit Advocate · Berlin Quantum Hackathon 2026 (3rd place) · QIntern 2025 First Team Award.
 
 [GitHub: Rudra1x](https://github.com/Rudra1x)
 
