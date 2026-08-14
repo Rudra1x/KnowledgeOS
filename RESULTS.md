@@ -42,3 +42,15 @@
 | overlapping        | 0.900 | 1.000 | 0.950 |   6 |  454 |
 | recursive          | 0.900 | 1.000 | 0.950 |   8 |  353 |
 | semantic           | 0.800 | 0.900 | 0.850 |   5 |  493 |
+
+## M3 Embedding Benchmark
+
+**Corpus:** corpus.txt (2478 chars)
+**Chunker:** RecursiveChunker (512/50)
+**Gold set:** 10 queries
+
+| Embedder | dim | recall@1 | recall@3 | MRR | ms/chunk |
+|----------|-----|----------|----------|-----|----------|
+| e5-small         |   384 | 1.000 | 1.000 | 1.000 | 64.1 |
+| instr-bge-b      |   768 | 1.000 | 1.000 | 1.000 | 183.6 |
+| bge-small        |   384 | 0.900 | 1.000 | 0.950 | 20.0 |
