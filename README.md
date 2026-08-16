@@ -22,8 +22,8 @@ Built as a learning project with production discipline: multi-tenant isolation f
 | M1 — Ingestion | ✅ Complete | 8-format loader + normalization pipeline |
 | M2 — Chunking | ✅ Complete | 6-strategy portfolio + benchmark |
 | M3 — Embedding | ✅ Complete | 5-backend portfolio + cache + benchmark |
-| M4 — Indexing | 🔜 Next | FAISS, Chroma, Qdrant, BM25, RAPTOR |
-| M5 — Retrieval | 🔜 Planned | Hybrid, multi-query, multi-hop, GraphRAG |
+| M4 — Indexing | ✅ Complete | TF-IDF, BM25, FAISS ANN, Chroma, Qdrant, RAPTOR, Hybrid RRF |
+| M5 — Retrieval | 🔜 Next | Multi-query, multi-hop, GraphRAG, Self-RAG |
 | M6 — Reranking | 🔜 Planned | Cross-encoder, LLM reranker |
 | M7 — Generation | 🔜 Planned | Context compression, citation, streaming |
 | M8 — Evaluation | 🔜 Planned | Full RAGAS-style harness |
@@ -67,12 +67,19 @@ Raw documents (8 formats)
                      ▼
 ┌─────────────────────────────────────────┐
 │              Index (M4)                 │
-│  FAISS Flat · IVF · HNSW              │
-│  BM25 · Chroma · Qdrant · pgvector    │
+│  TF-IDF · BM25 (sparse)               │
+│  FAISS Flat/IVF/HNSW (dense ANN)      │
+│  Chroma · Qdrant (managed vector DB)  │
+│  RAPTOR (multi-level summary tree)    │
 └────────────────────┬────────────────────┘
                      │
                      ▼
-              query → Retriever (M5)
+     ┌───────────────┴───────────────┐
+     │                               │
+VectorRetriever              HybridRetriever
+(dense only)                 (BM25 + Dense + RRF)
+     │                               │
+     └───────────────┬───────────────┘
                      │
                      ▼
               Reranker (M6)
@@ -108,7 +115,18 @@ Every stage is behind an ABC. Swap implementations via `configs/default.yaml`.
 | 2 | instr-bge-b | 768 | 1.000 | 1.000 | 1.000 | 183.6 |
 | 3 | bge-small | 384 | 0.900 | 1.000 | 0.950 | 20.0 |
 
-**Key finding:** E5's dual-prefix training closes BGE-small's one recall gap at 3x the compute cost. InstructionBGEb ties E5 at 9x the cost — not justified on in-distribution corpora.
+**Key finding:** E5's dual-prefix training closes BGE-small's one recall gap at 3x the compute cost. InstructionBGEb (768-dim) tied E5 at 9x the cost — larger dimension does not help on in-distribution content.
+
+### M4 — Indexing (same corpus, same gold set)
+
+| Rank | Index | recall@1 | recall@3 | MRR |
+|------|-------|----------|----------|-----|
+| 1 | BM25 (sparse) | 0.900 | 1.000 | 0.950 |
+| 1 | Dense (FAISS) | 0.900 | 1.000 | 0.950 |
+| 1 | Hybrid (RRF) | 0.900 | 1.000 | 0.950 |
+| 1 | RAPTOR | 0.900 | 1.000 | 0.950 |
+
+**Key finding:** all four indexes tied on this small uniform corpus. Hybrid RRF requires divergent failure modes to show its advantage — not present on 8 uniform chunks. RAPTOR correctly routes thematic queries to summary nodes but the gold set has no thematic queries.
 
 Full results in `RESULTS.md`.
 
@@ -150,17 +168,23 @@ KnowledgeOS/
 │   ├── instructor_embedder.py
 │   ├── jina_embedder.py    # stub (compatibility issue)
 │   ├── api_embedder.py     # OpenAI-compatible endpoint
-│   ├── cache.py            # CachedEmbedder (L1/L2)
+│   ├── cache.py            # CachedEmbedder (L1 memory + L2 SQLite)
 │   └── batch_processor.py  # BatchEmbedder + normalization utilities
 │
-├── indexes/                # M4
-│   └── faiss_index.py      # FaissFlatIndex (M0 baseline)
+├── indexes/                # 7 index types
+│   ├── faiss_index.py      # FaissFlatIndex, FaissIVFIndex, FaissHNSWIndex
+│   ├── tfidf_index.py      # TF-IDF from scratch
+│   ├── bm25_index.py       # BM25 from scratch
+│   ├── chroma_index.py     # ChromaIndex (persistence, deletion, collections)
+│   ├── qdrant_index.py     # QdrantIndex (pre-filter, payload, upsert)
+│   └── raptor_index.py     # RAPTORIndex (multi-level summary tree)
 │
-├── retrievers/             # M5
-│   └── vector_retriever.py # VectorRetriever (M0 baseline)
+├── retrievers/
+│   ├── vector_retriever.py # VectorRetriever (dense baseline)
+│   └── hybrid_retriever.py # HybridRetriever (BM25 + Dense + RRF)
 │
 ├── rerankers/              # M6
-├── generation/             # M7
+├── generation/
 │   ├── prompt_builder.py
 │   └── generator.py        # OpenRouterGenerator
 │
@@ -197,11 +221,12 @@ conda activate knowledgeos
 pip install torch faiss-cpu sentence-transformers pyyaml python-dotenv \
             pypdf pdfplumber python-docx trafilatura beautifulsoup4 \
             lxml pandas langdetect unicodedata2 requests openai \
-            youtube-transcript-api InstructorEmbedding transformers einops
+            youtube-transcript-api transformers einops \
+            chromadb qdrant-client scikit-learn
 
 # 3. Configure API keys
-cp .env.example .env
-# Edit .env and add OPENROUTER_API_KEY
+# Create .env at repo root:
+# OPENROUTER_API_KEY=sk-or-v1-...
 
 # 4. Run the baseline eval
 python scripts/run_eval.py
@@ -219,6 +244,9 @@ python scripts/run_chunker_benchmark.py
 # Embedding benchmark (all backends)
 python scripts/run_embedder_benchmark.py
 
+# Index benchmark (BM25 / Dense / Hybrid / RAPTOR)
+python scripts/run_index_benchmark.py
+
 # Multi-format ingestion eval
 python scripts/run_multiformat_eval.py
 
@@ -232,24 +260,29 @@ python scripts/test_pipeline.py
 
 **Plugin architecture over monolithic code.** 7 ABCs enforce contracts — swap any component by changing one YAML line. New chunkers, embedders, and retrievers plug in without touching downstream code.
 
-**Eval-first.** The evaluation harness was built in M0, not M8. Every component is measured against the same gold set — changes are either improvements (metric goes up) or regressions (metric goes down). No vibes-driven development.
+**Eval-first.** The evaluation harness was built in M0, not M8. Every component is measured against the same gold set. No vibes-driven development.
 
 **`tenant_id` from day one.** Multi-tenant isolation is in the dataclass and enforced at every retrieval boundary. Retrofitting it after the fact would require a full schema migration.
 
-**Benchmark over blog post.** Every "which X is best?" question is answered empirically on the actual corpus, not by picking from a ranked list online. The benchmark infrastructure transfers to any new corpus in minutes.
+**Benchmark over blog post.** Every "which X is best?" question is answered empirically on the actual corpus. The benchmark infrastructure transfers to any new corpus in minutes.
 
-**Fail loud at init, not at runtime.** Constructor guards catch impossible configurations (chunk_overlap >= chunk_size, missing API keys) at object creation — not 3 layers deep at runtime.
+**Fail loud at init, not at runtime.** Constructor guards catch impossible configurations at object creation — not 3 layers deep at runtime.
+
+**Never hardcode `:free` model IDs.** Free API tiers rotate constantly. Use `openrouter/free` as a stable alias.
 
 ---
 
 ## What I learned building this
 
-- Semantic chunking (most algorithmically complex) ranked **last** on technical reference corpora — it over-merged discrete concepts. Chunk size predicted recall@1 better than algorithm sophistication.
-- E5's dual-prefix training closed BGE-small's one recall gap, but at 3x the compute cost. Dimension (384 vs 768) didn't matter on in-distribution content.
+- Semantic chunking (most algorithmically complex) ranked **last** on technical reference corpora. Chunk size predicted recall@1 better than algorithm sophistication.
+- E5's dual-prefix training closed BGE-small's one recall gap at 3x compute cost. Dimension (384 vs 768) did not matter on in-distribution content.
 - The eval harness is software too — it has bugs. A chunk boundary artifact made correct retrieval look like a failure until we debugged the matcher.
-- `tenant_id` designed in costs zero effort. Retrofitted after the fact, it's a schema migration.
-- Free API tiers rotate constantly — never hardcode a `:free` model ID. Use `openrouter/free` as a stable alias.
-- 788x L1 cache speedup vs 2.6x L2 speedup — the two tiers serve very different use cases.
+- BM25 from scratch takes 50 lines. Understanding why it beats TF-IDF (TF saturation + length normalization) makes Elasticsearch configuration intuitive.
+- Hybrid RRF requires divergent failure modes. When both BM25 and dense miss the same query, RRF cannot rescue it. This is what most tutorials miss.
+- RAPTOR correctly routes thematic queries to summary nodes and specific queries to leaves — proven empirically on the actual corpus.
+- Pre-filter (Qdrant native payload filter before ANN) vs post-filter (FAISS + manual filter after) is the architectural distinction that matters at 1M+ vectors.
+- 788x L1 cache speedup vs 2.6x L2 — two tiers serve very different use cases.
+- `trust_remote_code` is a production liability. Jina v2 and v3 both broke on consecutive transformers upgrades. Pin revision or use stable alternatives.
 
 ---
 
@@ -268,8 +301,9 @@ Located in `docs/milestones/` and `docs/checkpoints/`.
 ## Author
 
 **Rudraksh Sharma** — Data Scientist at AIONOS, Technical Lead at Beerantum.
+Qiskit Advocate · Berlin Quantum Hackathon 2026 (3rd place) · QIntern 2025 First Team Award.
 
-[GitHub: Rudra1x](https://github.com/Rudra1x)
+[GitHub: Rudra1x](https://github.com/Rudra1x/KnowledgeOS)
 
 ---
 
