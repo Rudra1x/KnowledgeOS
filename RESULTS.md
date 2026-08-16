@@ -54,3 +54,14 @@
 | e5-small         |   384 | 1.000 | 1.000 | 1.000 | 64.1 |
 | instr-bge-b      |   768 | 1.000 | 1.000 | 1.000 | 183.6 |
 | bge-small        |   384 | 0.900 | 1.000 | 0.950 | 20.0 |
+
+## M4 Index Benchmark
+
+**Corpus:** corpus.txt  |  **Chunker:** RecursiveChunker  |  **Embedder:** BGE-small
+
+| Index | recall@1 | recall@3 | MRR |
+|-------|----------|----------|-----|
+| BM25 (sparse)        | 0.900 | 1.000 | 0.950 |
+| Dense (FAISS)        | 0.900 | 1.000 | 0.950 |
+| Hybrid (RRF)         | 0.900 | 1.000 | 0.950 |
+| RAPTOR               | 0.900 | 1.000 | 0.950 |
