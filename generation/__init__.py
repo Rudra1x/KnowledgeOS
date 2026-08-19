@@ -1,4 +1,7 @@
-from .generator      import OpenRouterGenerator
-from .prompt_builder import build_prompt
+# generation/__init__.py
 
-__all__ = ["OpenRouterGenerator", "build_prompt"]
+from .generator        import OpenRouterGenerator
+from .local_generator  import LocalLLMGenerator
+from .prompt_builder   import build_prompt
+
+__all__ = ["OpenRouterGenerator", "LocalLLMGenerator", "build_prompt"]

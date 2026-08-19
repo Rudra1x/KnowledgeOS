@@ -34,3 +34,8 @@ generator:
     model:       openrouter/free
     max_tokens:  512
     temperature: 0.0
+  local:
+    local_model:    qwen2.5:3b-instruct
+    fallback_model: openrouter/free
+    max_tokens:     512
+    temperature:    0.0
