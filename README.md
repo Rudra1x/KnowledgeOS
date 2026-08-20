@@ -23,7 +23,7 @@ Built as a learning project with production discipline: multi-tenant isolation f
 | M2 — Chunking | ✅ Complete | 6-strategy portfolio + benchmark |
 | M3 — Embedding | ✅ Complete | 5-backend portfolio + cache + benchmark |
 | M4 — Indexing | ✅ Complete | TF-IDF, BM25, FAISS ANN, Chroma, Qdrant, RAPTOR, Hybrid RRF |
-| M5 — Retrieval | 🔜 Next | Multi-query, multi-hop, GraphRAG, Self-RAG |
+| M5 — Retrieval | 🔄 In progress | FilteredRetriever, QueryRewriting, MultiQuery, MultiHop, Self-RAG, CRAG, Agentic |
 | M6 — Reranking | 🔜 Planned | Cross-encoder, LLM reranker |
 | M7 — Generation | 🔜 Planned | Context compression, citation, streaming |
 | M8 — Evaluation | 🔜 Planned | Full RAGAS-style harness |
@@ -74,27 +74,43 @@ Raw documents (8 formats)
 └────────────────────┬────────────────────┘
                      │
                      ▼
-     ┌───────────────┴───────────────┐
-     │                               │
-VectorRetriever              HybridRetriever
-(dense only)                 (BM25 + Dense + RRF)
-     │                               │
-     └───────────────┬───────────────┘
+┌─────────────────────────────────────────┐
+│           Retriever (M5)                │
+│  Vector · Hybrid (RRF)                 │
+│  Filtered · QueryRewriting             │
+│  MultiQuery · MultiHop                 │
+│  Self-RAG · CRAG · Agentic            │
+└────────────────────┬────────────────────┘
                      │
                      ▼
               Reranker (M6)
                      │
                      ▼
               Generator → cited answer
+              (Ollama local + OpenRouter fallback)
 ```
 
 Every stage is behind an ABC. Swap implementations via `configs/default.yaml`.
 
 ---
 
+## LLM setup
+
+KnowledgeOS uses a **local-first LLM strategy**:
+
+| Layer | Primary | Fallback |
+|-------|---------|---------|
+| Generation | `qwen2.5:3b-instruct` via Ollama | `openrouter/free` |
+| Retrieval (rewriting, multi-query, CRAG, Self-RAG) | `qwen2.5:3b-instruct` via Ollama | `openrouter/free` |
+
+Run locally: `ollama serve` (keep running in background).
+No GPU required — Qwen2.5-3B runs on CPU in ~2-3s per call.
+
+---
+
 ## Benchmark results
 
-### M2 — Chunking (same corpus, same gold set)
+### M2 — Chunking
 
 | Rank | Chunker | recall@1 | recall@3 | MRR | avg_size | ms |
 |------|---------|----------|----------|-----|----------|----|
@@ -105,9 +121,9 @@ Every stage is behind an ABC. Swap implementations via `configs/default.yaml`.
 | 5 | recursive | 0.900 | 1.000 | 0.950 | 353 | 139 |
 | 6 | semantic | 0.800 | 0.900 | 0.850 | 493 | 316 |
 
-**Key finding:** semantic chunking (most complex) ranked last on technical reference material — it over-merged discrete concepts. Chunk size predicted recall@1 better than algorithm sophistication.
+**Key finding:** semantic chunking (most complex) ranked last. Chunk size predicted recall@1 better than algorithm sophistication.
 
-### M3 — Embedding (same corpus, same gold set)
+### M3 — Embedding
 
 | Rank | Embedder | dim | recall@1 | recall@3 | MRR | ms/chunk |
 |------|----------|-----|----------|----------|-----|----------|
@@ -115,18 +131,25 @@ Every stage is behind an ABC. Swap implementations via `configs/default.yaml`.
 | 2 | instr-bge-b | 768 | 1.000 | 1.000 | 1.000 | 183.6 |
 | 3 | bge-small | 384 | 0.900 | 1.000 | 0.950 | 20.0 |
 
-**Key finding:** E5's dual-prefix training closes BGE-small's one recall gap at 3x the compute cost. InstructionBGEb (768-dim) tied E5 at 9x the cost — larger dimension does not help on in-distribution content.
+**Key finding:** E5's dual-prefix training closes BGE-small's one recall gap at 3x compute. 768-dim didn't help on in-distribution content.
 
-### M4 — Indexing (same corpus, same gold set)
+### M4 — Indexing
 
 | Rank | Index | recall@1 | recall@3 | MRR |
 |------|-------|----------|----------|-----|
-| 1 | BM25 (sparse) | 0.900 | 1.000 | 0.950 |
-| 1 | Dense (FAISS) | 0.900 | 1.000 | 0.950 |
-| 1 | Hybrid (RRF) | 0.900 | 1.000 | 0.950 |
-| 1 | RAPTOR | 0.900 | 1.000 | 0.950 |
+| 1 (tie) | BM25 / Dense / Hybrid / RAPTOR | 0.900 | 1.000 | 0.950 |
 
-**Key finding:** all four indexes tied on this small uniform corpus. Hybrid RRF requires divergent failure modes to show its advantage — not present on 8 uniform chunks. RAPTOR correctly routes thematic queries to summary nodes but the gold set has no thematic queries.
+**Key finding:** all tied on small uniform corpus. Hybrid RRF requires divergent failure modes. RAPTOR correctly routes thematic queries to summary nodes (score=0.84 vs leaf score=0.71).
+
+### M5 — Retrieval (in progress)
+
+| Retriever | recall@1 | MRR | Notes |
+|-----------|----------|-----|-------|
+| VectorRetriever (baseline) | 0.900 | 0.950 | M0 spine |
+| FilteredRetriever (post, CSV) | — | — | Format-specific routing |
+| QueryRewriting (reformulate) | 0.900 | 0.950 | Qwen2.5 rewrites |
+| QueryRewriting (HyDE) | 0.800 | — | Hurts on small corpus |
+| MultiQuery (n=3) | 0.800 | 0.900 | Union noise on 8 chunks |
 
 Full results in `RESULTS.md`.
 
@@ -179,14 +202,18 @@ KnowledgeOS/
 │   ├── qdrant_index.py     # QdrantIndex (pre-filter, payload, upsert)
 │   └── raptor_index.py     # RAPTORIndex (multi-level summary tree)
 │
-├── retrievers/
-│   ├── vector_retriever.py # VectorRetriever (dense baseline)
-│   └── hybrid_retriever.py # HybridRetriever (BM25 + Dense + RRF)
+├── retrievers/             # Retrieval portfolio (M5)
+│   ├── vector_retriever.py    # Dense baseline
+│   ├── hybrid_retriever.py    # BM25 + Dense + RRF
+│   ├── filtered_retriever.py  # Pre/post/boost metadata filtering
+│   ├── query_rewriting_retriever.py  # Reformulate + HyDE
+│   └── multi_query_retriever.py      # K variants → union
 │
 ├── rerankers/              # M6
 ├── generation/
 │   ├── prompt_builder.py
-│   └── generator.py        # OpenRouterGenerator
+│   ├── generator.py        # OpenRouterGenerator
+│   └── local_generator.py  # LocalLLMGenerator (Ollama + OpenRouter fallback)
 │
 ├── eval/                   # Evaluation harness
 │   ├── gold_set.py         # 10-query hand-labeled ground truth
@@ -224,11 +251,16 @@ pip install torch faiss-cpu sentence-transformers pyyaml python-dotenv \
             youtube-transcript-api transformers einops \
             chromadb qdrant-client scikit-learn
 
-# 3. Configure API keys
-# Create .env at repo root:
-# OPENROUTER_API_KEY=sk-or-v1-...
+# 3. Install and start Ollama (for local LLM)
+# Download from: https://ollama.com
+ollama pull qwen2.5:3b-instruct
+ollama serve   # keep running in background
 
-# 4. Run the baseline eval
+# 4. Configure API keys
+# Create .env at repo root:
+# OPENROUTER_API_KEY=sk-or-v1-...   (optional — used as fallback)
+
+# 5. Run the baseline eval
 python scripts/run_eval.py
 ```
 
@@ -247,8 +279,8 @@ python scripts/run_embedder_benchmark.py
 # Index benchmark (BM25 / Dense / Hybrid / RAPTOR)
 python scripts/run_index_benchmark.py
 
-# Multi-format ingestion eval
-python scripts/run_multiformat_eval.py
+# Full retrieval benchmark (M5 — when complete)
+python scripts/run_retriever_benchmark.py
 
 # Full pipeline (question answering)
 python scripts/test_pipeline.py
@@ -258,31 +290,34 @@ python scripts/test_pipeline.py
 
 ## Key design decisions
 
-**Plugin architecture over monolithic code.** 7 ABCs enforce contracts — swap any component by changing one YAML line. New chunkers, embedders, and retrievers plug in without touching downstream code.
+**Plugin architecture over monolithic code.** 7 ABCs enforce contracts — swap any component by changing one YAML line.
 
 **Eval-first.** The evaluation harness was built in M0, not M8. Every component is measured against the same gold set. No vibes-driven development.
 
-**`tenant_id` from day one.** Multi-tenant isolation is in the dataclass and enforced at every retrieval boundary. Retrofitting it after the fact would require a full schema migration.
+**`tenant_id` from day one.** Multi-tenant isolation is in the dataclass and enforced at every retrieval boundary.
 
-**Benchmark over blog post.** Every "which X is best?" question is answered empirically on the actual corpus. The benchmark infrastructure transfers to any new corpus in minutes.
+**Local LLM first.** Ollama + Qwen2.5-3B for all LLM calls inside the retrieval pipeline — no rate limits, no cost, instant. OpenRouter as fallback.
 
-**Fail loud at init, not at runtime.** Constructor guards catch impossible configurations at object creation — not 3 layers deep at runtime.
+**Benchmark over blog post.** Every "which X is best?" question is answered empirically on the actual corpus.
 
-**Never hardcode `:free` model IDs.** Free API tiers rotate constantly. Use `openrouter/free` as a stable alias.
+**Fail loud at init, not at runtime.** Constructor guards catch impossible configurations at object creation.
+
+**Graceful degradation compounds.** Query rewriting falls back to original query. Local LLM falls back to OpenRouter. Index returns empty list instead of crashing. Multiple layers of graceful degradation mean the pipeline never hard-crashes.
 
 ---
 
 ## What I learned building this
 
 - Semantic chunking (most algorithmically complex) ranked **last** on technical reference corpora. Chunk size predicted recall@1 better than algorithm sophistication.
-- E5's dual-prefix training closed BGE-small's one recall gap at 3x compute cost. Dimension (384 vs 768) did not matter on in-distribution content.
-- The eval harness is software too — it has bugs. A chunk boundary artifact made correct retrieval look like a failure until we debugged the matcher.
-- BM25 from scratch takes 50 lines. Understanding why it beats TF-IDF (TF saturation + length normalization) makes Elasticsearch configuration intuitive.
-- Hybrid RRF requires divergent failure modes. When both BM25 and dense miss the same query, RRF cannot rescue it. This is what most tutorials miss.
-- RAPTOR correctly routes thematic queries to summary nodes and specific queries to leaves — proven empirically on the actual corpus.
+- E5's dual-prefix training closed BGE-small's one recall gap at 3x compute. Dimension (384 vs 768) didn't matter on in-distribution content.
+- BM25 from scratch takes 50 lines. TF saturation (k1) and length normalization (b) only matter at scale with length variance — on 8 uniform chunks, BM25 and TF-IDF rank identically.
+- Hybrid RRF requires divergent failure modes. When both BM25 and dense miss the same query, RRF cannot rescue it.
+- RAPTOR correctly routes thematic queries to summary nodes (score=0.84) vs leaves for specific queries (score=0.71).
 - Pre-filter (Qdrant native payload filter before ANN) vs post-filter (FAISS + manual filter after) is the architectural distinction that matters at 1M+ vectors.
-- 788x L1 cache speedup vs 2.6x L2 — two tiers serve very different use cases.
-- `trust_remote_code` is a production liability. Jina v2 and v3 both broke on consecutive transformers upgrades. Pin revision or use stable alternatives.
+- 788x L1 cache speedup vs 2.6x L2 — the two tiers serve very different use cases.
+- Local Qwen2.5-3B produces measurably better query rewrites than free-tier cloud models. Query 3 went from r@1=0 (OpenRouter) to r@1=1 (Qwen).
+- Multi-query union introduces noise on small corpora — variants retrieve from the same small pool with shifted emphases, reranking incorrectly. On large corpora, the union covers more of the relevant space.
+- `trust_remote_code` is a production liability. Jina v2 and v3 both broke on consecutive transformers upgrades.
 
 ---
 
@@ -301,7 +336,6 @@ Located in `docs/milestones/` and `docs/checkpoints/`.
 ## Author
 
 **Rudraksh Sharma** — Data Scientist at AIONOS, Technical Lead at Beerantum.
-Qiskit Advocate · Berlin Quantum Hackathon 2026 (3rd place) · QIntern 2025 First Team Award.
 
 [GitHub: Rudra1x](https://github.com/Rudra1x/KnowledgeOS)
 
