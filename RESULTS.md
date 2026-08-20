@@ -65,3 +65,15 @@
 | Dense (FAISS)        | 0.900 | 1.000 | 0.950 |
 | Hybrid (RRF)         | 0.900 | 1.000 | 0.950 |
 | RAPTOR               | 0.900 | 1.000 | 0.950 |
+
+## M5 Retrieval (partial — Checkpoints 5.1–5.3)
+
+**Corpus:** corpus.txt | **Chunker:** Recursive | **Embedder:** BGE-small
+
+| Retriever | recall@1 | MRR | Notes |
+|-----------|----------|-----|-------|
+| Baseline (VectorRetriever) | 0.900 | 0.950 | M0 baseline |
+| FilteredRetriever (CSV boost) | — | — | Format-specific routing |
+| QueryRewriting (reformulate) | 0.900 | 0.950 | Qwen2.5 rewrites |
+| QueryRewriting (HyDE) | 0.800 | — | HyDE hurts on small corpus |
+| MultiQuery (n=3) | 0.800 | 0.900 | Union introduces noise on 8 chunks |
