@@ -77,3 +77,18 @@
 | QueryRewriting (reformulate) | 0.900 | 0.950 | Qwen2.5 rewrites |
 | QueryRewriting (HyDE) | 0.800 | — | HyDE hurts on small corpus |
 | MultiQuery (n=3) | 0.800 | 0.900 | Union introduces noise on 8 chunks |
+## M5 Retriever Benchmark
+
+**Corpus:** corpus.txt | **Chunker:** Recursive | **Embedder:** BGE-small
+**LLM:** qwen2.5:3b-instruct (Ollama local)
+
+| Retriever | recall@1 | recall@3 | MRR | time/10q |
+|-----------|----------|----------|-----|----------|
+| agentic            | 1.000 | 1.000 | 1.000 | 230.3s |
+| vector             | 0.900 | 1.000 | 0.950 | 0.2s |
+| hybrid_rrf         | 0.900 | 1.000 | 0.950 | 0.2s |
+| filtered_boost     | 0.900 | 1.000 | 0.950 | 0.2s |
+| query_rewrite      | 0.900 | 1.000 | 0.950 | 34.8s |
+| crag               | 0.900 | 1.000 | 0.950 | 464.5s |
+| self_rag           | 0.900 | 0.900 | 0.900 | 306.8s |
+| multi_query        | 0.800 | 1.000 | 0.900 | 58.1s |
