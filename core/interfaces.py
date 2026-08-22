@@ -39,9 +39,17 @@ class Retriever(ABC):
 
 
 class Reranker(ABC):
+    """Reorders a candidate set by relevance to a query."""
+
     @abstractmethod
-    def rerank(self, query: str, chunks: list[Chunk]) -> list[Chunk]:
-        """Return chunks sorted by relevance to query."""
+    def rerank(
+        self,
+        query:  str,
+        chunks: list[Chunk],
+        top_k:  int | None = None,
+    ) -> list[Chunk]:
+        """Return chunks sorted by relevance, highest first."""
+        ...
 
 
 class Generator(ABC):
