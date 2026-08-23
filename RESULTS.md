@@ -92,3 +92,19 @@
 | crag               | 0.900 | 1.000 | 0.950 | 464.5s |
 | self_rag           | 0.900 | 0.900 | 0.900 | 306.8s |
 | multi_query        | 0.800 | 1.000 | 0.900 | 58.1s |
+
+## M6 Reranker Benchmark
+
+**Corpus:** corpus.txt | **Retriever:** Vector (fetch_k=5) + Hybrid
+**Reranker models:** MS-MARCO-MiniLM-L6, BGE-reranker-base, LLM (Qwen2.5-3B), Metadata
+
+| Pipeline | recall@1 | recall@3 | MRR | time/10q |
+|----------|----------|----------|-----|----------|
+| Vector + MS-MARCO      | 1.000 | 1.000 | 1.000 | 3.2s |
+| Vector + BGE           | 1.000 | 1.000 | 1.000 | 16.6s |
+| Hybrid + MS-MARCO      | 1.000 | 1.000 | 1.000 | 1.9s |
+| Hybrid + BGE           | 1.000 | 1.000 | 1.000 | 10.8s |
+| Vector (no rerank)     | 0.900 | 1.000 | 0.950 | 0.5s |
+| Hybrid (no rerank)     | 0.900 | 1.000 | 0.950 | 0.6s |
+| Vector + LLM           | 0.900 | 1.000 | 0.950 | 360.0s |
+| Vector + Metadata      | 0.700 | 1.000 | 0.850 | 0.5s |
