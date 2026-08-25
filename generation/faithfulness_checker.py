@@ -10,25 +10,22 @@ class FaithfulnessChecker:
     """
     Checks whether a generated answer is supported by retrieved context.
 
-    Faithfulness: every claim in the answer is entailed by at least
-    one retrieved chunk. Claims not supported by any chunk are flagged
-    as potential hallucinations.
-
     Two strategies:
-    - 'nli':  cross-encoder NLI model (fast, calibrated, no Ollama needed)
-    - 'llm':  Qwen2.5-3B via Ollama (flexible, uses existing infrastructure)
+    - 'nli': cross-encoder NLI model (fast, ~500ms, no Ollama needed)
+    - 'llm': Qwen2.5-3B via Ollama (flexible, ~30s)
+
+    NLI is the production default. LLM is for complex multi-sentence
+    claims that NLI handles poorly.
 
     Parameters
     ----------
     strategy   : 'nli' | 'llm'
     model_name : str   NLI model (for strategy='nli')
     generator  : LocalLLMGenerator (for strategy='llm')
-    threshold  : float entailment probability threshold (nli only)
+    threshold  : float entailment threshold (nli=0.25, llm=0.5)
     """
 
     NAME = "faithfulness_checker"
-
-    NLI_ENTAILMENT_LABEL = "entailment"
 
     LLM_PROMPT = """Is the following claim directly supported by the passage?
 Answer YES if the passage explicitly states or clearly implies the claim.
@@ -42,10 +39,10 @@ Answer YES or NO:"""
 
     def __init__(
         self,
-        strategy:   str                      = "llm",
+        strategy:   str                      = "nli",
         model_name: str                      = "cross-encoder/nli-deberta-v3-small",
         generator:  LocalLLMGenerator | None = None,
-        threshold:  float                    = 0.5,
+        threshold:  float                    = 0.25,
     ):
         if strategy not in {"nli", "llm"}:
             raise ValueError(f"strategy must be 'nli' or 'llm'")
@@ -71,12 +68,12 @@ Answer YES or NO:"""
 
         Returns:
         {
-            "faithful":        bool  — True if all claims are supported
-            "score":           float — fraction of supported claims
-            "claims":          list[str]  — all extracted claims
-            "supported":       list[str]  — claims with support
-            "unsupported":     list[str]  — potential hallucinations
-            "claim_details":   list[dict] — per-claim evidence
+            "faithful":      bool
+            "score":         float  fraction of supported claims
+            "claims":        list[str]
+            "supported":     list[str]
+            "unsupported":   list[str]
+            "claim_details": list[dict]
         }
         """
         if not answer or not chunks:
@@ -114,10 +111,10 @@ Answer YES or NO:"""
                 unsupported.append(claim)
 
             details.append({
-                "claim":        claim,
-                "supported":    is_supported,
-                "score":        round(best_score, 3),
-                "best_chunk":   best_chunk_id[:8] if best_chunk_id else None,
+                "claim":      claim,
+                "supported":  is_supported,
+                "score":      round(best_score, 3),
+                "best_chunk": best_chunk_id[:8] if best_chunk_id else None,
             })
 
         n_claims = len(claims)
@@ -137,25 +134,47 @@ Answer YES or NO:"""
     # ------------------------------------------------------------------
 
     def _extract_claims(self, answer: str) -> list[str]:
-        """Split answer into individual claims (sentences)."""
-        # Strip citation markers before splitting
+        """Split answer into individual claims (sentences), strip citations."""
         clean = re.sub(r"\[\d+\]", "", answer).strip()
         sents = re.split(r"(?<=[.!?])\s+", clean)
         return [s.strip() for s in sents
                 if len(s.strip()) > 15 and not s.strip().startswith("[")]
 
     def _nli_score(self, passage: str, claim: str) -> float:
-        """Score entailment probability using NLI cross-encoder."""
+        """
+        Score entailment probability using NLI cross-encoder.
+        Falls back to string overlap for near-verbatim claims
+        (NLI models underperform when hypothesis ≈ premise).
+        """
+        clean_passage = self._clean_passage(passage, claim)
+
+        # String overlap fallback — NLI underscores near-verbatim claims
+        overlap = self._word_overlap(clean_passage, claim)
+        if overlap >= 0.85:
+            return 1.0   # near-verbatim → automatically supported
+
         result = self.model.predict(
-            [(passage[:512], claim)],
+            [(clean_passage[:512], claim)],
             apply_softmax=True,
         )
-        # Labels order varies by model — find entailment label
-        labels = self.model.config.id2label
-        for idx, label in labels.items():
-            if label.lower() == self.NLI_ENTAILMENT_LABEL:
-                return float(result[0][idx])
-        return float(result[0][0])
+        scores = result[0]
+        for idx, label in self.model.config.id2label.items():
+            if "entail" in str(label).lower():
+                return float(scores[int(idx)])
+        return float(scores[1])
+
+    @staticmethod
+    def _word_overlap(passage: str, claim: str) -> float:
+        """Fraction of claim words that appear in passage."""
+        stopwords    = {"is", "a", "an", "the", "and", "or", "it", "by",
+                        "how", "what", "does", "in", "on", "at", "to", "of",
+                        "based", "that", "this", "was", "were", "has", "have"}
+        claim_words  = {w.lower() for w in re.findall(r"\b\w+\b", claim)
+                        if w.lower() not in stopwords}
+        if not claim_words:
+            return 0.0
+        passage_words = {w.lower() for w in re.findall(r"\b\w+\b", passage)}
+        return len(claim_words & passage_words) / len(claim_words)
 
     def _llm_score(self, passage: str, claim: str) -> float:
         """Score support using LLM (YES=1.0, NO=0.0)."""
@@ -168,4 +187,37 @@ Answer YES or NO:"""
             return 1.0
         if response.startswith("NO"):
             return 0.0
-        return 0.5   # uncertain
+        return 0.5
+
+    @staticmethod
+    def _clean_passage(passage: str, claim: str) -> str:
+        """
+        Remove leading sentences that share no content words with the claim.
+        Handles chunk boundary artifacts that confuse NLI models.
+        """
+        sentences = re.split(r"(?<=[.!?])\s+", passage.strip())
+        if len(sentences) <= 1:
+            return passage
+
+        stopwords   = {"is", "a", "an", "the", "and", "or", "it", "by",
+                       "how", "what", "does", "in", "on", "at", "to", "of"}
+        claim_words = {w.lower() for w in re.findall(r"\b\w+\b", claim)
+                       if w.lower() not in stopwords}
+
+        kept = []
+        for sent in sentences:
+            sent_words = {w.lower() for w in re.findall(r"\b\w+\b", sent)}
+            if kept or (claim_words & sent_words):
+                kept.append(sent)
+
+        return " ".join(kept) if kept else passage
+
+    def _empty_result(self) -> dict:
+        return {
+            "faithful":      True,
+            "score":         1.0,
+            "claims":        [],
+            "supported":     [],
+            "unsupported":   [],
+            "claim_details": [],
+        }
