@@ -1,33 +1,32 @@
-
 # KnowledgeOS
 
 A modular, benchmark-driven **Retrieval Intelligence Platform** built from scratch.
 
-Every component is implemented from first principles and benchmarked against the same evaluation harness — not imported from a library and trusted blindly. The goal is to understand *why* each architectural decision works, not just that it does.
+Every component is implemented from first principles and benchmarked against the same evaluation harness. The goal is to understand *why* each architectural decision works, not just that it does.
 
 ---
 
 ## What this is
 
-KnowledgeOS is a full-stack RAG (Retrieval-Augmented Generation) platform covering the complete pipeline from raw documents to cited, grounded answers. Every stage is an ABC with multiple interchangeable implementations, swappable via a single YAML config line.
+KnowledgeOS is a full-stack RAG (Retrieval-Augmented Generation) platform covering the complete pipeline from raw documents to cited, grounded, quality-verified answers. Every stage is an ABC with multiple interchangeable implementations, swappable via a single YAML config line.
 
-Built with production discipline: multi-tenant isolation from day one, config-driven assembly, scientific evaluation at every milestone, local-first LLM strategy.
+Built with production discipline: multi-tenant isolation from day one, local-first LLM strategy, scientific evaluation at every milestone, grounded generation with inline citations and faithfulness verification.
 
 ---
 
 ## Current status
 
-| Milestone        | Status      | Deliverable                                                 |
-| ---------------- | ----------- | ----------------------------------------------------------- |
-| M0 — Spine      | ✅ Complete | End-to-end RAG with eval harness                            |
-| M1 — Ingestion  | ✅ Complete | 8-format loader + normalization pipeline                    |
-| M2 — Chunking   | ✅ Complete | 6-strategy portfolio + benchmark                            |
-| M3 — Embedding  | ✅ Complete | 5-backend portfolio + cache + benchmark                     |
-| M4 — Indexing   | ✅ Complete | TF-IDF, BM25, FAISS ANN, Chroma, Qdrant, RAPTOR, Hybrid RRF |
-| M5 — Retrieval  | ✅ Complete | 8 strategies from filtered to agentic ReAct                 |
-| M6 — Reranking  | ✅ Complete | Cross-encoder, BGE, LLM, Metadata rerankers                 |
-| M7 — Generation | 🔜 Planned  | Context compression, citation, streaming                    |
-| M8 — Evaluation | 🔜 Planned  | Full RAGAS-style harness                                    |
+| Milestone | Status | Deliverable |
+|-----------|--------|-------------|
+| M0 — Spine | ✅ Complete | End-to-end RAG with eval harness |
+| M1 — Ingestion | ✅ Complete | 8-format loader + normalization pipeline |
+| M2 — Chunking | ✅ Complete | 6-strategy portfolio + benchmark |
+| M3 — Embedding | ✅ Complete | 5-backend portfolio + cache + benchmark |
+| M4 — Indexing | ✅ Complete | TF-IDF, BM25, FAISS ANN, Chroma, Qdrant, RAPTOR, Hybrid RRF |
+| M5 — Retrieval | ✅ Complete | 8 strategies from filtered to agentic ReAct |
+| M6 — Reranking | ✅ Complete | Cross-encoder, BGE, LLM, metadata rerankers |
+| M7 — Generation | ✅ Complete | Grounded prompts, compression, faithfulness NLI, relevance, streaming |
+| M8 — Evaluation | 🔜 Planned | Full RAGAS-style harness |
 
 ---
 
@@ -37,136 +36,99 @@ Built with production discipline: multi-tenant isolation from day one, config-dr
 Raw documents (8 formats)
         │
         ▼
-┌──────────────────────────────────────┐
-│  LoaderRouter                        │
-│  TXT · PDF · DOCX · MD · HTML       │
-│  CSV · Email · YouTube              │
-└─────────────────┬────────────────────┘
-                  │ list[Document]
-                  ▼
-┌──────────────────────────────────────┐
-│  NormalizationPipeline               │
-│  TextCleaner · LanguageDetector     │
-│  MetadataEnricher                   │
-└─────────────────┬────────────────────┘
-                  │ list[Document] (canonical)
-                  ▼
-┌──────────────────────────────────────┐
-│  Chunker (6 strategies)              │
-│  Overlapping · Recursive · Semantic │
-│  ParentChild · Adaptive · MetaAware │
-└─────────────────┬────────────────────┘
-                  │ list[Chunk]
-                  ▼
-┌──────────────────────────────────────┐
-│  Embedder + Cache + Batch            │
-│  BGE · E5 · Instruction · API       │
-│  CachedEmbedder (788x L1 speedup)  │
-└─────────────────┬────────────────────┘
-                  │ vectors (float32, normalized)
-                  ▼
-┌──────────────────────────────────────┐
-│  Index (7 types)                     │
-│  TF-IDF · BM25 (sparse)            │
-│  FAISS Flat/IVF/HNSW (ANN)         │
-│  Chroma · Qdrant (managed vector DB)│
-│  RAPTOR (multi-level summary tree)  │
-└─────────────────┬────────────────────┘
-                  │ top-20 candidates
-                  ▼
-┌──────────────────────────────────────┐
-│  Retriever (8 strategies)            │
-│  Vector · Hybrid (RRF)              │
-│  Filtered · QueryRewriting          │
-│  MultiQuery · MultiHop              │
-│  SelfRAG · CRAG · Agentic          │
-└─────────────────┬────────────────────┘
-                  │ top-5 candidates (recall@5 ≈ 1.000)
-                  ▼
-┌──────────────────────────────────────┐
-│  Reranker (4 types)                  │
-│  CrossEncoder (MS-MARCO, 20ms)      │
-│  BGEReranker (278MB, 116ms)         │
-│  LLMReranker (custom criteria)      │
-│  MetadataReranker (recency/source)  │
-└─────────────────┬────────────────────┘
-                  │ top-3 reranked (recall@1 = 1.000)
-                  ▼
-         Generator → cited answer
-    (Ollama local + OpenRouter fallback)
+LoaderRouter (TXT·PDF·DOCX·MD·HTML·CSV·Email·YouTube)
+        │
+        ▼
+NormalizationPipeline (TextCleaner·LanguageDetector·MetadataEnricher)
+        │
+        ▼
+Chunker × 6 (Overlapping·Recursive·Semantic·ParentChild·Adaptive·MetaAware)
+        │
+        ▼
+Embedder × 5 + CachedEmbedder (788x L1 speedup) + BatchEmbedder
+        │
+        ▼
+Index × 7 (TF-IDF·BM25·FAISS Flat/IVF/HNSW·Chroma·Qdrant·RAPTOR)
+        │
+        ▼
+Retriever × 8 (Vector·Hybrid·Filtered·QueryRewrite·MultiQuery·MultiHop·SelfRAG·CRAG·Agentic)
+        │ top-20 candidates
+        ▼
+Reranker × 4 (MS-MARCO·BGE·LLM·Metadata)
+        │ top-3 reranked
+        ▼
+ContextCompressor (similarity/llm/budget, 0.63 mean ratio)
+        │ compressed chunks
+        ▼
+build_prompt() → [1][2][3] numbered grounded context
+        │
+        ▼
+StreamingGenerator (Ollama primary → OpenRouter fallback, SSE streaming)
+        │ answer with inline [N] citations
+        ▼
+extract_citations() → {N: Chunk} traceability
+        │ [async]
+        ▼
+FaithfulnessChecker (NLI + word overlap, 176ms)
+        │ [async]
+        ▼
+AnswerRelevanceScorer (reverse question generation, RAGAS-inspired)
 ```
 
 ---
 
 ## LLM setup
 
-KnowledgeOS uses a **local-first LLM strategy**:
+| Layer | Primary | Fallback |
+|-------|---------|---------|
+| Generation | `qwen2.5:3b-instruct` via Ollama | `openrouter/free` |
+| Retrieval (rewriting, CRAG, SelfRAG, Agentic) | `qwen2.5:3b-instruct` via Ollama | `openrouter/free` |
+| Relevance scoring | `qwen2.5:3b-instruct` via Ollama | `openrouter/free` |
 
-| Layer                                          | Primary                            | Fallback            |
-| ---------------------------------------------- | ---------------------------------- | ------------------- |
-| Retrieval (rewriting, CRAG, Self-RAG, Agentic) | `qwen2.5:3b-instruct` via Ollama | `openrouter/free` |
-| Generation                                     | `qwen2.5:3b-instruct` via Ollama | `openrouter/free` |
-
-Start Ollama before running LLM-dependent components: `ollama serve`
+Start Ollama before running any LLM-dependent component: `ollama serve`
 
 ---
 
 ## Benchmark results
 
 ### M2 — Chunking
-
-| Rank | Chunker        | recall@1 | MRR   | Key property                     |
-| ---- | -------------- | -------- | ----- | -------------------------------- |
-| 1    | parent_child   | 1.000    | 1.000 | 3× context window               |
-| 2    | adaptive       | 1.000    | 1.000 | Density-based sizing             |
-| 3    | metadata_aware | 1.000    | 1.000 | Atomic tables                    |
-| 4    | overlapping    | 0.900    | 0.950 | Simple baseline                  |
-| 5    | recursive      | 0.900    | 0.950 | Natural boundaries               |
-| 6    | semantic       | 0.800    | 0.850 | Over-merges on technical content |
-
-**Key finding:** semantic chunking ranked last. Chunk size predicted recall@1 better than algorithm sophistication.
+Semantic chunking ranked last (recall@1=0.800). Chunk size predicted recall better than algorithm complexity.
 
 ### M3 — Embedding
-
-| Rank | Embedder    | dim | recall@1 | ms/chunk |
-| ---- | ----------- | --- | -------- | -------- |
-| 1    | e5-small    | 384 | 1.000    | 64.1     |
-| 2    | instr-bge-b | 768 | 1.000    | 183.6    |
-| 3    | bge-small   | 384 | 0.900    | 20.0     |
-
-**Key finding:** 768-dim didn't help over 384-dim on in-distribution content. 788× L1 cache speedup.
+E5-small (recall@1=1.000) > BGE-small (0.900) at 3× cost. 768-dim didn't help on in-distribution content. CachedEmbedder: 788× L1 speedup.
 
 ### M4 — Indexing
-
-All indexes tied at recall@1=0.900. Hybrid RRF needs divergent failure modes. RAPTOR routes thematic queries to summary nodes (score=0.84 vs leaf 0.71).
+All four methods tied at recall@1=0.900. RAPTOR correctly routes thematic queries to summary nodes (score=0.84 vs leaf 0.71). Hybrid RRF needs divergent failure modes.
 
 ### M5 — Retrieval
 
-| Retriever              | recall@1 | time/10q |
-| ---------------------- | -------- | -------- |
-| Agentic                | 1.000    | 230s     |
-| Vector/Hybrid/Filtered | 0.900    | 0.2s     |
-| QueryRewriting/CRAG    | 0.900    | 35-465s  |
-| SelfRAG                | 0.900    | 307s     |
-| MultiQuery             | 0.800    | 58s      |
-
-**Key finding:** Agentic = perfect recall at 23s/query. Deterministic retrievers = 0.900 at 0.02s/query.
+| Retriever | recall@1 | time/10q |
+|-----------|----------|----------|
+| Agentic | 1.000 | 230s |
+| Vector/Hybrid/Filtered | 0.900 | 0.2s |
+| MultiQuery | 0.800 | 58s |
 
 ### M6 — Reranking
 
-| Rank | Pipeline           | recall@1 | time/10q |
-| ---- | ------------------ | -------- | -------- |
-| 1    | Vector + MS-MARCO  | 1.000    | 3.2s     |
-| 2    | Hybrid + MS-MARCO  | 1.000    | 1.9s     |
-| 3    | Vector + BGE       | 1.000    | 16.6s    |
-| 4    | Hybrid + BGE       | 1.000    | 10.8s    |
-| 5    | Vector (no rerank) | 0.900    | 0.5s     |
-| 6    | Vector + LLM       | 0.900    | 360s     |
-| 7    | Vector + Metadata  | 0.700    | 0.5s     |
+| Pipeline | recall@1 | time/10q |
+|----------|----------|----------|
+| Hybrid + MS-MARCO | 1.000 | 1.9s |
+| Vector + MS-MARCO | 1.000 | 3.2s |
+| Vector (no rerank) | 0.900 | 0.5s |
+| Vector + LLM | 0.900 | 360s |
 
-**Key finding:** Hybrid + MS-MARCO achieves perfect recall at 190ms/query — 72× faster than agentic retrieval for the same result. Cross-encoder reranking is the highest ROI upgrade in any RAG system.
+**Key finding:** Hybrid + MS-MARCO = perfect recall at 190ms/query. 72× faster than agentic retrieval for the same result.
 
-**The architectural principle proven across M0→M6:** recall@3 is a retrieval problem; recall@1 is a reranking problem.
+### M7 — Generation (5 queries, CPU, Qwen2.5-3B)
+
+| Metric | Score |
+|--------|-------|
+| Retrieval recall@1 | 1.000 |
+| Context compression ratio | 0.63 |
+| Faithfulness (NLI) | 0.80 |
+| Answer relevance | 0.73 |
+| TTFT (CPU) | 7.4s |
+| TTFT (GPU estimate) | ~500ms |
 
 Full results in `RESULTS.md`.
 
@@ -176,23 +138,26 @@ Full results in `RESULTS.md`.
 
 ```
 KnowledgeOS/
-├── core/                   # ABCs, dataclasses, config, normalizers
-├── loaders/                # 8 format loaders + router
-├── chunkers/               # 6 chunking strategies
-├── embedders/              # 5 backends + CachedEmbedder + BatchEmbedder
-├── indexes/                # 7 types: TF-IDF, BM25, FAISS×3, Chroma, Qdrant, RAPTOR
-├── retrievers/             # 8 strategies: Vector, Hybrid, Filtered, QueryRewrite,
-│                           #   MultiQuery, MultiHop, SelfRAG, CRAG, Agentic
-├── rerankers/              # 4 types: CrossEncoder, BGE, LLM, Metadata+Similarity
+├── core/                    # ABCs, dataclasses, config, normalizers
+├── loaders/                 # 8 format loaders + router
+├── chunkers/                # 6 chunking strategies
+├── embedders/               # 5 backends + CachedEmbedder + BatchEmbedder
+├── indexes/                 # 7 types (TF-IDF, BM25, FAISS×3, Chroma, Qdrant, RAPTOR)
+├── retrievers/              # 8 strategies + HybridRetriever
+├── rerankers/               # CrossEncoder, BGE, LLM, Similarity, Metadata
 ├── generation/
-│   ├── generator.py        # OpenRouterGenerator
-│   └── local_generator.py  # LocalLLMGenerator (Ollama primary)
-├── eval/                   # Harness: gold_set, recall@k, MRR, faithfulness
+│   ├── generator.py         # OpenRouterGenerator
+│   ├── local_generator.py   # LocalLLMGenerator (Ollama primary)
+│   ├── streaming_generator.py # StreamingGenerator (SSE, TTFT measurement)
+│   ├── prompt_builder.py    # build_prompt(), extract_citations()
+│   ├── context_compressor.py # ContextCompressor (similarity/llm/budget)
+│   ├── faithfulness_checker.py # FaithfulnessChecker (NLI + word overlap)
+│   └── answer_relevance.py  # AnswerRelevanceScorer (RAGAS-inspired)
+├── eval/                    # Gold set, recall@k, MRR, faithfulness
 ├── configs/default.yaml
-├── scripts/                # Benchmark scripts (run_*_benchmark.py)
-├── docs/                   # Milestone + checkpoint documentation
-├── RESULTS.md              # All benchmark results
-└── .env                    # API keys (git-ignored)
+├── scripts/                 # All benchmark and test scripts
+├── docs/                    # Milestone + checkpoint documentation
+└── RESULTS.md               # All benchmark results, chronological
 ```
 
 ---
@@ -211,13 +176,13 @@ pip install torch faiss-cpu sentence-transformers pyyaml python-dotenv \
             youtube-transcript-api transformers einops \
             chromadb qdrant-client scikit-learn
 
-# 3. Local LLM (required for M5-M6)
-# Install Ollama from https://ollama.com
+# 3. Local LLM (required for M5-M7)
+# Install Ollama: https://ollama.com
 ollama pull qwen2.5:3b-instruct
 ollama serve   # keep running in background
 
 # 4. API keys (optional — used as fallback)
-# OPENROUTER_API_KEY=sk-or-v1-... in .env
+# Create .env: OPENROUTER_API_KEY=sk-or-v1-...
 
 # 5. Baseline eval
 python scripts/run_eval.py
@@ -227,45 +192,45 @@ python scripts/run_eval.py
 
 ## Key design decisions
 
-**Plugin architecture.** 7 ABCs, swap any component via YAML. New implementations plug in without changing downstream code.
+**Plugin architecture.** 7 ABCs — swap any component via one YAML line.
 
-**Eval-first.** Gold set built in M0. Every component measured against it. No vibes-driven development.
+**Eval-first.** Gold set in M0, every component benchmarked against it. No vibes.
 
-**`tenant_id` from day one.** Multi-tenant isolation in the dataclass, enforced at every boundary. Free at design time; painful to retrofit.
+**`tenant_id` from day one.** Multi-tenant isolation in the dataclass, free at design time, painful to retrofit.
 
-**Local LLM first.** Ollama + Qwen2.5-3B for all LLM calls inside the retrieval pipeline. No rate limits, no cost, no rotating model IDs.
+**Local LLM first.** Ollama + Qwen2.5-3B for all LLM calls. No rate limits, no rotating model IDs, no cost.
 
-**Benchmark over blog post.** Every "which X is best?" question answered empirically on actual corpus data.
+**Grounded generation.** System prompt with three rules + numbered passages + NLI faithfulness checking. Defense in depth.
 
-**Graceful degradation compounds.** Query rewriting falls back to original query. Local LLM falls back to OpenRouter. Index returns empty instead of crashing. The pipeline never hard-crashes.
+**Async quality checks.** Return the answer immediately, run faithfulness + relevance in the background, flag retroactively.
 
 ---
 
 ## What I learned building this
 
-- Semantic chunking ranked **last** on technical corpora — chunk size predicted recall better than algorithm complexity.
-- E5 closed BGE-small's recall gap at 3× compute. Dimension (384 vs 768) didn't matter on in-distribution content.
-- Hybrid RRF needs divergent failure modes — both legs failing on the same query produces no benefit.
-- RAPTOR routes thematic queries to summary nodes (0.84) vs leaves for specific queries (0.71) — proven empirically.
-- Agentic retrieval achieved perfect recall by discovering hybrid retrieval dynamically — not because it was told to use it.
-- **The central finding of M6:** recall@3 is a retrieval problem; recall@1 is a reranking problem. A 22MB cross-encoder closes the recall gap that took a 23s/query agentic retriever in M5, at 72× lower latency.
-- Local Qwen2.5-3B produces better query rewrites than free-tier cloud models — stability matters for components on the critical path.
-- Pre-filter (Qdrant native) vs post-filter (FAISS + manual) is the architectural distinction at 1M+ vectors.
-- Query-agnostic keyword boosts hurt precision. Recency boost is unconditionally valid. LLM reranking is 149× slower than cross-encoder for no quality gain on semantic ranking tasks.
-- 788× L1 cache speedup vs 2.6× L2 — two tiers serve different use cases.
+- Semantic chunking ranked **last** — chunk size predicted recall better than algorithm sophistication.
+- E5 closed BGE-small's gap at 3× cost. 768-dim didn't help on in-distribution content.
+- Hybrid RRF needs divergent failure modes. RAPTOR routes thematic queries to summary nodes.
+- Agentic retrieval achieved perfect recall by discovering hybrid retrieval dynamically — not because it was told to.
+- **M6 central finding:** recall@3 is a retrieval problem; recall@1 is a reranking problem. A 22MB cross-encoder closes the gap that took a 23s agentic retriever, at 72× lower latency.
+- NLI model selection is critical — nli-deberta-v3-small scored 0.001 on clear entailment; nli-MiniLM2-L6-H768 scored 0.796. Always validate on your domain.
+- Near-verbatim claims score paradoxically low in NLI — word overlap fallback (≥0.85 → supported) is necessary.
+- LLM faithfulness checking is 37s per answer; NLI is 176ms. NLI wins on every metric except custom criteria.
+- TTFT=7.4s on CPU is prefill-dominated. GPU cuts to 500ms. The streaming architecture is hardware-agnostic.
+- Query-agnostic metadata boosts hurt precision. Recency boost is unconditionally valid.
+- Answer relevance threshold 0.85 is too strict — correct answers score 0.65-0.75 via reverse-question generation.
 
 ---
 
 ## Documentation
 
-Every milestone has a deep-dive document with:
-
+Every milestone has:
 - Architecture recap and design decisions
-- Per-checkpoint technical notes
-- 40-question interview mock exam
+- Per-checkpoint technical notes with code walkthroughs
+- 40-question interview mock exam (fundamentals → applied → design → whiteboard)
 - 30-second, 2-minute, and 5-minute walkthrough scripts
 
-Located in `docs/milestones/` and `docs/checkpoints/`.
+In `docs/milestones/` and `docs/checkpoints/`.
 
 ---
 
@@ -278,4 +243,4 @@ Qiskit Advocate · Berlin Quantum Hackathon 2026 (3rd place) · QIntern 2025 Fir
 
 ---
 
-*Built milestone by milestone. Stop-safe at any point — M0 alone is a complete, demoable RAG system.*
+*Built milestone by milestone. Stop-safe at any point — M0 alone is a complete, demoable RAG system. M6 alone is a production-ready retrieval + reranking pipeline.*
