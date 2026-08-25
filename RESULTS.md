@@ -108,3 +108,18 @@
 | Hybrid (no rerank)     | 0.900 | 1.000 | 0.950 | 0.6s |
 | Vector + LLM           | 0.900 | 1.000 | 0.950 | 360.0s |
 | Vector + Metadata      | 0.700 | 1.000 | 0.850 | 0.5s |
+
+## M7 Generation Benchmark
+
+**Pipeline:** Vector retrieval → MS-MARCO rerank → Similarity compress → Qwen2.5-3B generate → NLI faithfulness → Relevance score
+**Corpus:** corpus.txt | **LLM:** qwen2.5:3b-instruct (Ollama)
+
+| Query | r@1 | Faithfulness | Relevance | TTFT |
+|-------|-----|-------------|-----------|------|
+| What is RAG?                           | 1 | 1.00 | 0.57 | 7581ms |
+| How does chunking affect retrieval quality? | 1 | 1.00 | 0.79 | 7115ms |
+| What is BM25 and when does it work well? | 1 | 1.00 | 0.71 | 7635ms |
+| How is dense retrieval different from BM25? | 1 | 0.00 | 0.86 | 7526ms |
+| What is hybrid retrieval?              | 1 | 1.00 | 0.74 | 7231ms |
+
+**Mean:** r@1=1.00 | faith=0.80 | relevance=0.73 | ttft=7417ms
