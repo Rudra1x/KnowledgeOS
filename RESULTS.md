@@ -123,3 +123,18 @@
 | What is hybrid retrieval?              | 1 | 1.00 | 0.74 | 7231ms |
 
 **Mean:** r@1=1.00 | faith=0.80 | relevance=0.73 | ttft=7417ms
+
+## M8 Pipeline Evaluation: hybrid_rerank_v1
+
+**Gold set:** 12 queries (v2) | **Total time:** 261.7s
+
+| Metric | Score |
+|--------|-------|
+| recall@1 | 0.8 |
+| recall@3 | 0.8 |
+| nDCG@3 | 0.8 |
+| MRR | 0.8 |
+| Faithfulness | 0.6917 |
+| Citation coverage | 0.2997 |
+| Answer relevance | 0.8223 |
+| Negative decline rate | 1.0 |
