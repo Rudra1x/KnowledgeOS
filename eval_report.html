@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KnowledgeOS Eval — hybrid_rerank_v1</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --border: #334155;
+    --text: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text);
+    padding: 2rem; line-height: 1.5;
+  }
+  h1 { font-size: 1.8rem; color: var(--accent); margin-bottom: 0.25rem; }
+  h2 { font-size: 1.1rem; color: var(--muted);
+        text-transform: uppercase; letter-spacing: 0.08em;
+        margin: 2rem 0 0.75rem; }
+  .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+  .cards { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 0.75rem; padding: 1.25rem 1.5rem;
+    min-width: 130px; flex: 1;
+  }
+  .card-label { font-size: 0.75rem; color: var(--muted);
+                 text-transform: uppercase; letter-spacing: 0.06em; }
+  .card-value { font-size: 2rem; font-weight: 700; margin: 0.25rem 0; }
+  .card-cat   { font-size: 0.7rem; color: var(--muted); }
+  table {
+    width: 100%; border-collapse: collapse;
+    background: var(--surface); border-radius: 0.5rem;
+    overflow: hidden; font-size: 0.875rem;
+  }
+  th {
+    background: #0f172a; color: var(--muted);
+    padding: 0.6rem 0.75rem; text-align: left;
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1a2a3a; }
+  .badge {
+    display: inline-block; padding: 0.15rem 0.5rem;
+    border-radius: 9999px; font-size: 0.7rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge-factoid    { background:#1e3a5f; color:#93c5fd; }
+  .badge-comparison { background:#1e3a2a; color:#86efac; }
+  .badge-thematic   { background:#3a2a1e; color:#fcd34d; }
+  .badge-negative   { background:#3a1e1e; color:#fca5a5; }
+  .badge-easy       { background:#1a2a1a; color:#4ade80; }
+  .badge-medium     { background:#2a2a1a; color:#facc15; }
+  .badge-hard       { background:#2a1a1a; color:#f87171; }
+  .query-text       { max-width: 280px; white-space: nowrap;
+                       overflow: hidden; text-overflow: ellipsis; }
+  .answer-snippet   { max-width: 300px; white-space: nowrap;
+                       overflow: hidden; text-overflow: ellipsis;
+                       color: var(--muted); font-size: 0.8rem; }
+  .section { margin-top: 2rem; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  footer { margin-top: 3rem; color: var(--muted);
+            font-size: 0.75rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>KnowledgeOS Evaluation Report</h1>
+<div class="meta">
+  Run: <b>hybrid_rerank_v1</b> &nbsp;|&nbsp;
+  Queries: <b>12</b> &nbsp;|&nbsp;
+  Total time: <b>222.3s</b> &nbsp;|&nbsp;
+  Generated: <b>2026-08-26 16:50</b>
+</div>
+
+<h2>Summary</h2>
+<div class="cards">
+        <div class="card">
+          <div class="card-label">recall@1</div>
+          <div class="card-value" style="color:#ca8a04">80.0%</div>
+          <div class="card-cat">Retrieval</div>
+        </div>
+        <div class="card">
+          <div class="card-label">nDCG@3</div>
+          <div class="card-value" style="color:#ca8a04">80.0%</div>
+          <div class="card-cat">Retrieval</div>
+        </div>
+        <div class="card">
+          <div class="card-label">MRR</div>
+          <div class="card-value" style="color:#ca8a04">80.0%</div>
+          <div class="card-cat">Retrieval</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Faithfulness</div>
+          <div class="card-value" style="color:#ca8a04">62.0%</div>
+          <div class="card-cat">Generation</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Relevance</div>
+          <div class="card-value" style="color:#ca8a04">80.6%</div>
+          <div class="card-cat">Generation</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Cit. Coverage</div>
+          <div class="card-value" style="color:#dc2626">26.6%</div>
+          <div class="card-cat">Generation</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Neg. Decline</div>
+          <div class="card-value" style="color:#16a34a">100.0%</div>
+          <div class="card-cat">Robustness</div>
+        </div></div>
+
+<div class="two-col section">
+  <div>
+    <h2>By Query Type</h2>
+    <table>
+      <thead><tr>
+        <th>Type</th><th>recall@1</th><th>nDCG@3</th>
+        <th>Faith.</th><th>Rel.</th><th>N</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-comparison">comparison</span></td>
+          <td style="color:#ca8a04">66.7%</td>
+          <td style="color:#ca8a04">66.7%</td>
+          <td style="color:#dc2626">50.0%</td>
+          <td style="color:#ca8a04">83.4%</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-factoid">factoid</span></td>
+          <td style="color:#ca8a04">80.0%</td>
+          <td style="color:#ca8a04">80.0%</td>
+          <td style="color:#ca8a04">70.0%</td>
+          <td style="color:#ca8a04">75.9%</td>
+          <td>5</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-thematic">thematic</span></td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#ca8a04">60.0%</td>
+          <td style="color:#16a34a">88.4%</td>
+          <td>2</td>
+        </tr></tbody>
+    </table>
+  </div>
+  <div>
+    <h2>By Difficulty</h2>
+    <table>
+      <thead><tr>
+        <th>Difficulty</th><th>recall@1</th><th>nDCG@3</th>
+        <th>Faith.</th><th>Rel.</th><th>N</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><b>easy</b></td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#ca8a04">83.3%</td>
+          <td style="color:#ca8a04">70.2%</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td><b>hard</b></td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#dc2626">0.0%</td>
+          <td style="color:#16a34a">92.1%</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><b>medium</b></td>
+          <td style="color:#ca8a04">66.7%</td>
+          <td style="color:#ca8a04">66.7%</td>
+          <td style="color:#ca8a04">61.7%</td>
+          <td style="color:#ca8a04">84.0%</td>
+          <td>6</td>
+        </tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Per-Query Detail</h2>
+  <table>
+    <thead><tr>
+      <th>Query</th><th>Type</th><th>Difficulty</th>
+      <th>recall@1</th><th>Faith.</th><th>Rel.</th><th>Answer</th>
+    </tr></thead>
+    <tbody>
+        <tr>
+          <td class="query-text" title="What is RAG?">What is RAG?</td>
+          <td><span class="badge badge-factoid">factoid</span></td>
+          <td><span class="badge badge-easy">easy</span></td>
+          <td style="color:#16a34a;font-weight:bold">100.0%</td>
+          <td style="color:#dc2626">50.0%</td>
+          <td style="color:#ca8a04">70.9%</td>
+          <td class="answer-snippet" title="RAG combines information retrieval with language model generation. It fetches relevant documents at query time to ground...">RAG combines information retrieval with language model generation. It fetches re...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="What is BM25 and when does it work well?">What is BM25 and when does it work well?</td>
+          <td><span class="badge badge-factoid">factoid</span></td>
+          <td><span class="badge badge-easy">easy</span></td>
+          <td style="color:#16a34a;font-weight:bold">100.0%</td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#ca8a04">73.5%</td>
+          <td class="answer-snippet" title="BM25 is a sparse retrieval algorithm based on term frequency and inverse document frequency. It scores documents by how ...">BM25 is a sparse retrieval algorithm based on term frequency and inverse documen...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="What is FAISS used for?">What is FAISS used for?</td>
+          <td><span class="badge badge-factoid">factoid</span></td>
+          <td><span class="badge badge-easy">easy</span></td>
+          <td style="color:#16a34a;font-weight:bold">100.0%</td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#ca8a04">66.1%</td>
+          <td class="answer-snippet" title="FAISS is a library used for efficient similarity search on dense vectors. It supports flat indexes for small corpora and...">FAISS is a library used for efficient similarity search on dense vectors. It sup...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="What is faithfulness in RAG evaluation?">What is faithfulness in RAG evaluation?</td>
+          <td><span class="badge badge-factoid">factoid</span></td>
+          <td><span class="badge badge-medium">medium</span></td>
+          <td style="color:#dc2626;font-weight:bold">0.0%</td>
+          <td style="color:#dc2626">0.0%</td>
+          <td style="color:#16a34a">87.3%</td>
+          <td class="answer-snippet" title="Faithfulness in RAG evaluation measures whether generated answers are supported by the retrieved context, ensuring no cl...">Faithfulness in RAG evaluation measures whether generated answers are supported ...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="What does Reciprocal Rank Fusion do?">What does Reciprocal Rank Fusion do?</td>
+          <td><span class="badge badge-factoid">factoid</span></td>
+          <td><span class="badge badge-medium">medium</span></td>
+          <td style="color:#16a34a;font-weight:bold">100.0%</td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#ca8a04">81.6%</td>
+          <td class="answer-snippet" title="Reciprocal Rank Fusion (RRF) merges ranked lists from BM25 and vector search by summing reciprocal ranks. [1]...">Reciprocal Rank Fusion (RRF) merges ranked lists from BM25 and vector search by ...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="How is dense retrieval different from BM25?">How is dense retrieval different from BM25?</td>
+          <td><span class="badge badge-comparison">comparison</span></td>
+          <td><span class="badge badge-hard">hard</span></td>
+          <td style="color:#16a34a;font-weight:bold">100.0%</td>
+          <td style="color:#dc2626">0.0%</td>
+          <td style="color:#16a34a">92.1%</td>
+          <td class="answer-snippet" title="Dense retrieval uses neural embeddings to capture semantic meaning, whereas BM25 is a sparse retrieval algorithm based o...">Dense retrieval uses neural embeddings to capture semantic meaning, whereas BM25...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="What is hybrid retrieval?">What is hybrid retrieval?</td>
+          <td><span class="badge badge-comparison">comparison</span></td>
+          <td><span class="badge badge-medium">medium</span></td>
+          <td style="color:#16a34a;font-weight:bold">100.0%</td>
+          <td style="color:#dc2626">50.0%</td>
+          <td style="color:#ca8a04">81.6%</td>
+          <td class="answer-snippet" title="Hybrid retrieval combines sparse and dense methods. As described in passage [1], Hybrid retrieval consistently beats eit...">Hybrid retrieval combines sparse and dense methods. As described in passage [1],...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="How do cross-encoder rerankers work?">How do cross-encoder rerankers work?</td>
+          <td><span class="badge badge-comparison">comparison</span></td>
+          <td><span class="badge badge-medium">medium</span></td>
+          <td style="color:#dc2626;font-weight:bold">0.0%</td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#ca8a04">76.4%</td>
+          <td class="answer-snippet" title="Cross-encoders score query-document pairs jointly and produce much higher precision than bi-encoders, at the cost of lat...">Cross-encoders score query-document pairs jointly and produce much higher precis...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="Which metrics evaluate retrieval quality?">Which metrics evaluate retrieval quality?</td>
+          <td><span class="badge badge-thematic">thematic</span></td>
+          <td><span class="badge badge-medium">medium</span></td>
+          <td style="color:#16a34a;font-weight:bold">100.0%</td>
+          <td style="color:#16a34a">100.0%</td>
+          <td style="color:#16a34a">91.0%</td>
+          <td class="answer-snippet" title="[1] Evaluation metrics for retrieval include recall@k, precision@k, MRR, and nDCG....">[1] Evaluation metrics for retrieval include recall@k, precision@k, MRR, and nDC...</td>
+        </tr>
+        <tr>
+          <td class="query-text" title="How does chunking affect retrieval quality?">How does chunking affect retrieval quality?</td>
+          <td><span class="badge badge-thematic">thematic</span></td>
+          <td><span class="badge badge-medium">medium</span></td>
+          <td style="color:#16a34a;font-weight:bold">100.0%</td>
+          <td style="color:#dc2626">20.0%</td>
+          <td style="color:#16a34a">85.8%</td>
+          <td class="answer-snippet" title="Chunking affects retrieval quality differently depending on the strategy used. Fixed chunking, as described in [1], spli...">Chunking affects retrieval quality differently depending on the strategy used. F...</td>
+        </tr>
+        <tr>
+          <td class="query-text">What is pgvector and how does it compare to FAISS?</td>
+          <td><span class="badge badge-negative">negative</span></td>
+          <td><span class="badge badge-hard">hard</span></td>
+          <td colspan="4" style="text-align:center;color:#16a34a">
+            NEGATIVE — DECLINED</td>
+        </tr>
+        <tr>
+          <td class="query-text">What is the capital of France?</td>
+          <td><span class="badge badge-negative">negative</span></td>
+          <td><span class="badge badge-easy">easy</span></td>
+          <td colspan="4" style="text-align:center;color:#16a34a">
+            NEGATIVE — DECLINED</td>
+        </tr></tbody>
+  </table>
+</div>
+
+<footer>KnowledgeOS &mdash; Built milestone by milestone &mdash; 2026-08-26 16:50</footer>
+</body>
+</html>
