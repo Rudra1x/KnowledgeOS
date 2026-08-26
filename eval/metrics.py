@@ -1,8 +1,32 @@
 # eval/metrics.py
 
 from core import Chunk
+import math
+
+# Add these two functions to the bottom of eval/metrics.py
+
+import math as _math
+
+def ndcg_at_k(retrieved: list, relevant_text: str, k: int) -> float:
+    """Normalized Discounted Cumulative Gain at k."""
+    if not retrieved or not relevant_text:
+        return 0.0
+    dcg = 0.0
+    for i, chunk in enumerate(retrieved[:k], start=1):
+        if is_relevant(chunk, relevant_text):
+            dcg += 1.0 / _math.log2(i + 1)
+            break
+    idcg = 1.0   # perfect: relevant doc at rank 1
+    return round(dcg / idcg, 4)
 
 
+def precision_at_k(retrieved: list, relevant_text: str, k: int) -> float:
+    """Fraction of top-k retrieved chunks that are relevant."""
+    if not retrieved:
+        return 0.0
+    top_k = retrieved[:k]
+    n_rel = sum(1 for c in top_k if is_relevant(c, relevant_text))
+    return round(n_rel / len(top_k), 4)
 def is_relevant(chunk: Chunk, relevant_text: str, min_overlap: float = 0.6) -> bool:
     """
     A chunk is relevant if it contains at least `min_overlap` fraction of the
@@ -59,3 +83,36 @@ def faithfulness_check(answer: str, retrieved: list[Chunk]) -> float:
 
     grounded = sum(1 for ng in ngrams if ng in context)
     return grounded / len(ngrams)
+
+def ndcg_at_k(retrieved: list, relevant_text: str, k: int) -> float:
+    """
+    Normalized Discounted Cumulative Gain at k.
+
+    DCG@k  = sum(rel_i / log2(i+1)) for i in 1..k
+    IDCG@k = DCG of perfect ranking (relevant doc at rank 1)
+    nDCG@k = DCG@k / IDCG@k
+
+    For binary relevance (0 or 1):
+    - IDCG@k = 1/log2(2) = 1.0 (perfect: relevant at rank 1)
+    - DCG@k  = 1/log2(rank+1) if relevant doc found, else 0
+    """
+    if not retrieved or not relevant_text:
+        return 0.0
+
+    dcg = 0.0
+    for i, chunk in enumerate(retrieved[:k], start=1):
+        if is_relevant(chunk, relevant_text):
+            dcg += 1.0 / math.log2(i + 1)
+            break   # binary relevance: only first relevant counts
+
+    idcg = 1.0   # perfect: relevant doc at rank 1 → 1/log2(2) = 1.0
+    return round(dcg / idcg, 4)
+
+
+def precision_at_k(retrieved: list, relevant_text: str, k: int) -> float:
+    """Fraction of top-k retrieved chunks that are relevant."""
+    if not retrieved:
+        return 0.0
+    top_k   = retrieved[:k]
+    n_rel   = sum(1 for c in top_k if is_relevant(c, relevant_text))
+    return round(n_rel / len(top_k), 4)
