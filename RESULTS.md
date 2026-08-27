@@ -153,3 +153,27 @@
 | Citation coverage | 0.4241 |
 | Answer relevance | 0.8404 |
 | Negative decline rate | 1.0 |
+
+## FINAL PRODUCTION BENCHMARK (post-corpus-rebuild)
+
+**Pipeline:** Hybrid retrieval + MS-MARCO reranker + Qwen2.5-3B generator
+**Corpus:** 10 clean paragraphs, chunk_size=300, chunk_overlap=0
+**Gold set:** 13 typed queries (v2) — factoid/comparison/thematic/negative
+
+| Metric | Score |
+|--------|-------|
+| recall@1 | 0.909 |
+| recall@3 | 1.000 |
+| nDCG@3 | 0.955 |
+| MRR | 0.939 |
+| Faithfulness (NLI) | 0.955 |
+| Answer relevance | 0.840 |
+| Negative decline rate | 1.000 |
+
+**Key fix:** corpus rebuild with clean paragraph boundaries and chunk_overlap=0
+eliminated boundary artifact sentences that caused faithfulness to read 0.692.
+After fix: faithfulness = 0.955.
+
+**Known limitation:** "How is dense retrieval different from BM25?" retrieves
+at rank 3 (not rank 1). Classified difficulty:hard, documented in gold_set_v2.
+recall@3=1.0, faithfulness=1.0, relevance=0.920 — answer is correct and grounded.
