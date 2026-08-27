@@ -138,3 +138,18 @@
 | Citation coverage | 0.2997 |
 | Answer relevance | 0.8223 |
 | Negative decline rate | 1.0 |
+
+## M8 Pipeline Evaluation: hybrid_rerank_v1
+
+**Gold set:** 13 queries (v2) | **Total time:** 249.8s
+
+| Metric | Score |
+|--------|-------|
+| recall@1 | 0.9091 |
+| recall@3 | 1.0 |
+| nDCG@3 | 0.9545 |
+| MRR | 0.9394 |
+| Faithfulness | 0.9545 |
+| Citation coverage | 0.4241 |
+| Answer relevance | 0.8404 |
+| Negative decline rate | 1.0 |

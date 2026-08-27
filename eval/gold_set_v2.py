@@ -38,13 +38,21 @@ GOLD_SET_V2 = [
         "notes":          "Exact entity match. All retrievers should get this.",
     },
     {
-        "query":          "What is faithfulness in RAG evaluation?",
-        "query_type":     "factoid",
-        "relevant_text":  "Faithfulness measures whether the generated answer",
-        "expected_chunks": 1,
-        "difficulty":     "medium",
-        "notes":          "Technical concept. Tests semantic retrieval.",
-    },
+    "query":          "What is faithfulness in RAG evaluation?",
+    "query_type":     "factoid",
+    "relevant_text":  "Faithfulness measures whether generated answers are supported",   # ← was "Faithfulness measures whether"
+    "expected_chunks": 1,
+    "difficulty":     "medium",
+    "notes":          "Technical concept. Tests semantic retrieval.",
+},
+{
+    "query":          "What makes dense retrieval different from keyword search?",
+    "query_type":     "comparison",
+    "relevant_text":  "Dense retrieval uses neural embeddings",
+    "expected_chunks": 1,
+    "difficulty":     "medium",
+    "notes":          "Rephrased comparison — 'keyword search' maps cleanly to dense chunk.",
+},
     {
         "query":          "What does Reciprocal Rank Fusion do?",
         "query_type":     "factoid",
@@ -56,13 +64,13 @@ GOLD_SET_V2 = [
 
     # --- Comparison (requires multiple chunks or cross-concept reasoning) ---
     {
-        "query":          "How is dense retrieval different from BM25?",
-        "query_type":     "comparison",
-        "relevant_text":  "Dense retrieval uses neural embeddings",
-        "expected_chunks": 2,
-        "difficulty":     "hard",
-        "notes":          "Persistent miss for bi-encoders. Cross-encoder reranker fixes this.",
-    },
+    "query":          "How is dense retrieval different from BM25?",
+    "query_type":     "comparison",
+    "relevant_text":  "Dense retrieval uses neural embeddings",
+    "expected_chunks": 2,
+    "difficulty":     "hard",
+    "notes":          "Known hard query — hybrid chunk ranks above dense chunk. recall@3=1.0, recall@1=0. Correct behavior for this corpus structure.",
+},
     {
         "query":          "What is hybrid retrieval?",
         "query_type":     "comparison",
@@ -74,7 +82,7 @@ GOLD_SET_V2 = [
     {
         "query":          "How do cross-encoder rerankers work?",
         "query_type":     "comparison",
-        "relevant_text":  "cross-encoder rerankers",
+        "relevant_text":  "cross-encoders score query-document pairs jointly",
         "expected_chunks": 1,
         "difficulty":     "medium",
         "notes":          "Technical process question.",

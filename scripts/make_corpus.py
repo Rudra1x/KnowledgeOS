@@ -1,27 +1,30 @@
 # scripts/make_corpus.py
-# Run once to create a clean corpus.txt
 
-corpus = """Retrieval-Augmented Generation (RAG) combines information retrieval with language model generation. Instead of relying only on parametric knowledge stored in model weights, RAG fetches relevant documents at query time. This lets the model ground its answers in external, up-to-date sources.
+CORPUS = """Retrieval-Augmented Generation (RAG) combines information retrieval with language model generation. RAG retrieves relevant documents from a knowledge base and provides them as context to the language model, grounding the generated answer in retrieved facts.
 
-The retrieval step embeds both the query and documents into a shared vector space. Nearest neighbor search then finds the most semantically similar chunks. These retrieved chunks are passed as context to the generator.
+Chunking strategy has a large impact on retrieval quality. Fixed chunking splits text at regular character intervals regardless of content structure. Recursive chunking splits on paragraph, sentence, and character boundaries in order, preserving natural text structure. Semantic chunking uses embedding similarity to detect topic shifts, producing variable-length chunks around coherent concepts.
 
-Chunking strategy has a large impact on retrieval quality. Fixed chunking splits text at regular character intervals regardless of meaning. Recursive chunking splits on paragraph, sentence, and word boundaries hierarchically. Semantic chunking uses embedding similarity to detect topic shifts.
+BM25 is a sparse retrieval algorithm based on term frequency and inverse document frequency. It scores documents by how many query terms appear, weighted by rarity. BM25 excels at exact keyword matches and short queries with specific named entities.
 
-BM25 is a sparse retrieval algorithm based on term frequency and inverse document frequency. It scores documents by how many query terms appear, weighted by rarity. BM25 excels at exact keyword matches and short queries with specific entities.
+Dense retrieval uses neural embeddings to capture semantic meaning beyond keyword overlap. Dense retrieval can match paraphrases and synonyms that share no surface form with the query. It performs better on conceptual queries but requires GPU for fast inference at scale.
 
-Dense retrieval uses neural embeddings to capture semantic meaning. Unlike BM25, dense retrievers can match paraphrases and synonyms that share no surface words. Popular dense models include BGE, E5, and Instructor embeddings.
+Hybrid retrieval combines sparse and dense methods. Reciprocal Rank Fusion (RRF) merges ranked lists from BM25 and vector search by summing reciprocal ranks. Hybrid retrieval consistently beats either method alone on diverse query types.
 
-Hybrid retrieval combines sparse and dense methods. Reciprocal Rank Fusion (RRF) merges ranked lists from BM25 and vector search by summing reciprocal ranks. Hybrid consistently beats either method alone on diverse query types.
+Rerankers refine an initial retrieval result set. Cross-encoders score query-document pairs jointly and produce much higher precision than bi-encoders, at the cost of latency. Rerankers are typically applied to the top 50-100 candidates from the retriever.
 
-Rerankers refine an initial retrieval result. Cross-encoders score query-document pairs jointly and produce much higher precision than bi-encoders, at the cost of latency. Rerankers are typically applied to the top 50-100 candidates from the retriever.
+Evaluation metrics for retrieval include recall@k, precision@k, MRR, and nDCG. Recall@k measures whether the correct document appears in the top-k results. MRR measures how high the first relevant result ranks on average. nDCG rewards finding relevant documents at higher ranks.
 
-Evaluation metrics for retrieval include recall@k, precision@k, MRR, and nDCG. Recall@k measures whether the correct document appears in the top k results. MRR captures how high the first relevant result ranks on average.
+Faithfulness measures whether generated answers are supported by the retrieved context. A high-faithfulness system only asserts claims that appear in the retrieved passages. Faithfulness is evaluated by checking each claim in the answer against the source chunks using NLI models.
 
-Faithfulness measures whether generated answers are supported by the retrieved context. A high-faithfulness answer contains no claims that go beyond what the context states. Hallucination detection typically compares answer spans against retrieved chunks.
+FAISS is a library for efficient similarity search on dense vectors developed by Facebook AI Research. FAISS supports both exact search with IndexFlatIP and approximate search with IVF and HNSW indexes. It compares answer spans against retrieved chunks using inner product or L2 distance.
 
-FAISS is a library for efficient similarity search on dense vectors. It supports flat (exact) indexes for small corpora and approximate indexes like IVF and HNSW for larger scales. HNSW trades a small recall drop for large speed gains."""
+Chunking overlap controls how much content is shared between adjacent chunks. A 50-token overlap ensures that sentences at chunk boundaries appear in both adjacent chunks. Excessive overlap increases index size and can confuse retrieval by duplicating content."""
 
-with open("scripts/corpus.txt", "w", encoding="utf-8") as f:
-    f.write(corpus)
-
-print(f"Written: {len(corpus)} chars, {corpus.count(chr(10)+chr(10))+1} paragraphs")
+if __name__ == "__main__":
+    import os
+    os.makedirs("scripts", exist_ok=True)
+    with open("scripts/corpus.txt", "w", encoding="utf-8") as f:
+        f.write(CORPUS)
+    print(f"Corpus written: {len(CORPUS)} chars, "
+          f"{len(CORPUS.splitlines())} lines, "
+          f"{len([p for p in CORPUS.split(chr(10)*2) if p.strip()])} paragraphs")

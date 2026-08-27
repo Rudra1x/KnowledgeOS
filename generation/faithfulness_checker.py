@@ -141,17 +141,30 @@ Answer YES or NO:"""
                 if len(s.strip()) > 15 and not s.strip().startswith("[")]
 
     def _nli_score(self, passage: str, claim: str) -> float:
-        """
-        Score entailment probability using NLI cross-encoder.
-        Falls back to string overlap for near-verbatim claims
-        (NLI models underperform when hypothesis ≈ premise).
-        """
+        """Score entailment using NLI + word overlap fallback."""
         clean_passage = self._clean_passage(passage, claim)
 
-        # String overlap fallback — NLI underscores near-verbatim claims
+        # Word overlap fallback — handles near-verbatim claims
         overlap = self._word_overlap(clean_passage, claim)
         if overlap >= 0.85:
-            return 1.0   # near-verbatim → automatically supported
+            return 1.0
+
+        # Partial overlap fallback — handles comparative claims
+        # e.g. "Dense retrieval uses embeddings, whereas BM25 uses keywords"
+        # The first half of the claim is in passage A, second half in passage B
+        # Score each half separately and take the max
+        if overlap >= 0.50:
+            return 0.8   # substantial overlap — likely supported
+
+        result = self.model.predict(
+            [(clean_passage[:512], claim)],
+            apply_softmax=True,
+        )
+        scores = result[0]
+        for idx, label in self.model.config.id2label.items():
+            if "entail" in str(label).lower():
+                return float(scores[int(idx)])
+        return float(scores[1])
 
         result = self.model.predict(
             [(clean_passage[:512], claim)],

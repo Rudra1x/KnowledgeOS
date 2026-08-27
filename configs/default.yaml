@@ -2,8 +2,8 @@
 
 chunker:
   fixed:
-    chunk_size:    512
-    chunk_overlap: 50
+    chunk_size:    300
+    chunk_overlap: 0
 
 embedder:
   bge_small:
